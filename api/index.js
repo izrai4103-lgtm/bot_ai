@@ -680,7 +680,7 @@ export default async function handler(req, res) {
       try { refreshOpenAIDocs(); } catch(e) {}
 
             const openaiDocsCtx = getOpenAIDocsContext("");
-      const systemMsg = `${openaiWebContext}${openaiDocsCtx}Kamu adalah asisten AI bernama ELENA yang cakap, langsung, dan efisien.
+      const systemMsg = `${openaiWebContext}${openaiDocsCtx}Kamu adalah asisten AI bernama ELENA yang berjalan di dalam **AI Sandbox Qwen** — lingkungan aman dan terisolasi dengan sistem log, statistik, error handling, dan filter bawaan.
 
 # Personality
 Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab dengan singkat, padat, dan langsung ke inti. Gunakan bahasa Indonesia yang alami dan mudah dipahami.
@@ -764,7 +764,7 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
 
       const plain = loadPlain();
             const openaiDocsCtx = getOpenAIDocsContext("");
-      const contextPrompt = `${webContext}${openaiDocsCtx}Kamu adalah asisten AI yang cakap, langsung, dan efisien.
+      const contextPrompt = `${webContext}${openaiDocsCtx}Kamu adalah asisten AI yang berjalan di dalam **AI Sandbox Qwen** — lingkungan aman dan terisolasi dengan sistem log, statistik, error handling, dan filter bawaan.
 
 
 # Personality

@@ -52,7 +52,8 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 .messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 .messages-inner{max-width:800px;margin:0 auto;padding:0 20px}
 .message{margin-bottom:24px;display:flex;gap:16px;animation:fadeIn .3s ease}
-.message.user{flex-direction:row-reverse}
+.message.user{flex-direction:row-reverse;margin-left:auto;max-width:85%}
+.message.assistant{margin-right:auto;max-width:85%}
 .message.user .message-content{text-align:right}
 .message.user .name{text-align:right}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}
@@ -60,7 +61,7 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 .message-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;margin-top:4px}
 .message-avatar.user{background:var(--accent);color:#fff}
 .message-avatar.assistant{background:#5436da;color:#fff}
-.message-content{flex:1;min-width:0}
+.message-content{flex:1;min-width:0;max-width:100%}
 .message-content .name{font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
 .message-content .text{font-size:15px;line-height:1.6;color:var(--text-primary);white-space:pre-wrap;word-break:break-word}
 .message-content .text p{margin-bottom:12px}
@@ -112,8 +113,7 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 /* Error */
 .error-msg{padding:12px 16px;background:#3d1a1a;border:1px solid #5c2a2a;border-radius:8px;color:#ff6b6b;font-size:14px;margin-bottom:12px}
 /* Scroll lock indicator */
-.scroll-lock-indicator{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--text-secondary);cursor:pointer;margin-bottom:8px;display:none;white-space:nowrap}
-.scroll-lock-indicator.show{display:block}
+
 /* Mobile overlay */
 .sidebar-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:98}
 /* Responsive */
@@ -168,8 +168,8 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
       <div class="info">
         <div class="name">User</div>
         <div class="status">Online</div>
-      <button class="clear-btn" onclick="clearHistory()" title="Hapus semua chat">🗑️</button>
       </div>
+      <button class="clear-btn" onclick="clearHistory()" title="Hapus semua chat">🗑️</button>
     </div>
   </aside>
 
@@ -188,7 +188,7 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
     </header>
 
     <!-- Messages -->
-    <div class="messages" id="messages" onscroll="checkScroll()">
+    <div class="messages" id="messages">
       <div class="messages-inner" id="messagesInner">
         <!-- Welcome Screen -->
         <div class="welcome" id="welcomeScreen">
@@ -220,9 +220,7 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
     <!-- Input -->
     <div class="input-area">
       <div class="input-inner">
-        <div class="scroll-lock-indicator" id="scrollLockIndicator" onclick="toggleAutoScroll()">
-          🔄 Auto-scroll: NYALA - Klik untuk matikan
-        </div>
+        
         <button class="stop-btn" id="stopBtn" onclick="stopGeneration()">■ Stop</button>
         <div class="input-wrapper">
           <textarea id="chatInput" rows="1" placeholder="Kirim pesan..." oninput="autoResize(this)" onkeydown="handleKeyDown(event)" onclick="checkWelcome()"></textarea>
@@ -244,7 +242,6 @@ let messages = [];
 let currentModel = 'qwen/qwen3.6-27b';
 let isGenerating = false;
 let abortController = null;
-let autoScroll = true;
 let chatHistory = JSON.parse(localStorage.getItem('bot_ai_chats') || '[]');
 let activeChatId = localStorage.getItem('bot_ai_active_chat') || null;
 
@@ -256,7 +253,6 @@ const chatInput = document.getElementById('chatInput');
 const sendBtn = document.getElementById('sendBtn');
 const stopBtn = document.getElementById('stopBtn');
 const headerTitle = document.getElementById('headerTitle');
-const scrollLockIndicator = document.getElementById('scrollLockIndicator');
 const chatList = document.getElementById('chatList');
 
 // ============ SIDEBAR ============
@@ -309,17 +305,11 @@ async function sendMessage() {
   // Save chat
   saveChat(text, '');
   
-  // Auto scroll
-  scrollToBottom();
-
   // Send to API
   isGenerating = true;
   stopBtn.classList.add('show');
   abortController = new AbortController();
   
-  // Update scroll indicator
-  updateScrollIndicator();
-
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
@@ -354,7 +344,6 @@ async function sendMessage() {
             if (parsed.content) {
               fullContent += parsed.content;
               updateMessage(msgId, fullContent);
-              if (autoScroll) scrollToBottom();
             }
           } catch {}
         }
@@ -370,12 +359,10 @@ async function sendMessage() {
     } else {
       updateMessage(msgId, '❌ Error: ' + err.message + '\n\nSilakan coba lagi atau refresh halaman.');
     }
-    if (autoScroll) scrollToBottom();
   } finally {
     isGenerating = false;
     stopBtn.classList.remove('show');
     abortController = null;
-    updateScrollIndicator();
   }
 }
 
@@ -459,35 +446,6 @@ function copyMessage(id) {
 }
 
 // ============ SCROLL ============
-function scrollToBottom() {
-  requestAnimationFrame(() => {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  });
-}
-
-function checkScroll() {
-  const threshold = 100;
-  const atBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < threshold;
-  // Don't change autoScroll based on scroll position
-}
-
-function toggleAutoScroll() {
-  autoScroll = !autoScroll;
-  updateScrollIndicator();
-  if (autoScroll) scrollToBottom();
-}
-
-function updateScrollIndicator() {
-  const indicator = document.getElementById('scrollLockIndicator');
-  if (!indicator) return;
-  if (!isGenerating) {
-    indicator.classList.remove('show');
-    return;
-  }
-  indicator.textContent = autoScroll ? '🔄 Auto-scroll: NYALA - Klik untuk matikan' : '⏸️ Auto-scroll: MATI - Klik untuk nyalakan';
-  indicator.classList.add('show');
-}
-
 // ============ SUGGESTIONS ============
 function suggestClick(text) {
   chatInput.value = text;
@@ -612,7 +570,6 @@ function loadChat(chatId) {
   
   if (window.innerWidth <= 768) toggleSidebar();
   renderChatList();
-  scrollToBottom();
 }
 
 // ============ INIT ============
@@ -624,15 +581,6 @@ if (activeChatId) {
 }
 
 // Initial scroll indicator state
-updateScrollIndicator();
-
-// Intersection observer for auto-scroll
-let scrollObserver = new MutationObserver(() => {
-  if (autoScroll && isGenerating) scrollToBottom();
-});
-
-scrollObserver.observe(messagesInner, { childList: true, subtree: true, characterData: true });
-
 // Fix for iOS Safari viewport height
 function fixViewport() {
   document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px');

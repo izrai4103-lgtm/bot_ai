@@ -716,7 +716,7 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
         const responseText = await sandboxChat({
           prompt: extractTextFromContent(messages[messages.length - 1]?.content || ''),
           history: messages.slice(0, -1).filter(m => m.role !== 'system'),
-          model: model.replace('/', '.'),
+          model: model,
           temperature: body.temperature || 0.7,
           maxTokens: body.max_tokens || 4096,
           system: systemMsg,
@@ -803,7 +803,7 @@ ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
         const streamGen = sandboxChatStream({
           prompt: typeof message === 'object' ? (message.content || JSON.stringify(message)) : message,
           history: history || [],
-          model: (model || 'qwen/qwen3.6-27b').replace('/', '.'),
+          model: (model || 'qwen/qwen3.6-27b'),
           temperature: 0.7,
           maxTokens: 4096,
           system: contextPrompt,

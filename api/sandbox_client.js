@@ -47,7 +47,7 @@ export async function sandboxChat({ prompt, history, model, temperature, maxToke
         body: JSON.stringify({
           prompt,
           history: history || [],
-          model: model || 'qwen3.6-27b',
+          model: model || 'qwen/qwen3.6-27b',
           temperature: temperature || 0.7,
           max_tokens: maxTokens || 4096,
           system: system || null,
@@ -97,7 +97,7 @@ export async function* sandboxChatStream({ prompt, history, model, temperature, 
         body: JSON.stringify({
           prompt,
           history: history || [],
-          model: model || 'qwen3.6-27b',
+          model: model || 'qwen/qwen3.6-27b',
           temperature: temperature || 0.7,
           max_tokens: maxTokens || 4096,
           system: system || null,

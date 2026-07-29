@@ -13,6 +13,9 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 .app{display:flex;height:100dvh}
 /* Sidebar */
 .sidebar{width:var(--sidebar-width);background:var(--bg-secondary);display:flex;flex-direction:column;border-right:1px solid var(--border);flex-shrink:0;transition:transform .3s ease}
+.sidebar-header{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sidebar-header .logo{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#fff;flex-shrink:0}
+.sidebar-header h1{font-size:16px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .new-chat-btn{margin:12px 16px;padding:12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .2s}
 .new-chat-btn:hover{background:var(--bg-hover)}
 .chat-list{flex:1;overflow-y:auto;padding:8px}
@@ -94,16 +97,6 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 .thinking-status .phase-dots span:nth-child(3){animation-delay:.4s}
 @keyframes thinkingDot{0%,60%,100%{opacity:.3}30%{opacity:1}
 }
-/* Welcome */
-.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px 20px;text-align:center}
-.welcome .logo-large{width:64px;height:64px;background:var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:700;color:#fff;margin-bottom:20px}
-.welcome h2{font-size:24px;font-weight:600;margin-bottom:8px;color:var(--text-primary)}
-.welcome p{font-size:15px;color:var(--text-tertiary);max-width:400px;margin-bottom:32px;line-height:1.5}
-.welcome .suggestions{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:500px;width:100%}
-.suggestion-btn{padding:14px 16px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:14px;cursor:pointer;text-align:left;transition:background .2s;line-height:1.4}
-.suggestion-btn:hover{background:var(--bg-hover)}
-.suggestion-btn .label{font-weight:500;margin-bottom:2px}
-.suggestion-btn .desc{font-size:12px;color:var(--text-tertiary)}
 /* Input */
 .input-area{border-top:1px solid var(--border);padding:16px 20px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));flex-shrink:0}
 .input-inner{max-width:800px;margin:0 auto;position:relative}
@@ -130,7 +123,6 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 .sidebar-overlay.show{display:block}
 .menu-btn{display:flex}
 .header-title{font-size:14px}
-.welcome .suggestions{grid-template-columns:1fr}
 .messages-inner{padding:0 16px}
 .message-content .text{font-size:14px}
 .input-area{padding:12px 16px}
@@ -161,6 +153,9 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
   
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">B</div>
+      <h1>Bot AI</h1>
     </div>
     <button class="new-chat-btn" onclick="newChat()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -182,7 +177,7 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
     <!-- Header -->
     <header class="header">
       <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-      <div class="header-title" id="headerTitle"></div>
+      <div class="header-title" id="headerTitle">Bot AI</div>
       <div class="header-actions">
         <div class="model-badge">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -194,30 +189,6 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
     <!-- Messages -->
     <div class="messages" id="messages">
       <div class="messages-inner" id="messagesInner">
-        <!-- Welcome Screen -->
-        <div class="welcome" id="welcomeScreen">
-          <div class="logo-large">B</div>
-          <h2>Ada yang bisa saya bantu?</h2>
-          <p>Saya adalah asisten AI berbasis Groq Llama. Tanyakan apa saja!</p>
-          <div class="suggestions">
-            <button class="suggestion-btn" onclick="suggestClick('Jelaskan apa itu artificial intelligence')">
-              <div class="label">🧠 Apa itu AI?</div>
-              <div class="desc">Penjelasan sederhana tentang AI</div>
-            </button>
-            <button class="suggestion-btn" onclick="suggestClick('Bantu saya belajar coding Python')">
-              <div class="label">💻 Belajar Python</div>
-              <div class="desc">Panduan coding untuk pemula</div>
-            </button>
-            <button class="suggestion-btn" onclick="suggestClick('Buatkan saya resep masakan sederhana')">
-              <div class="label">🍳 Resep Masakan</div>
-              <div class="desc">Ide masakan sehari-hari</div>
-            </button>
-            <button class="suggestion-btn" onclick="suggestClick('Tulis cerita pendek inspiratif')">
-              <div class="label">📖 Cerita Inspiratif</div>
-              <div class="desc">Cerita pendek yang memotivasi</div>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -227,7 +198,7 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
         
         <button class="stop-btn" id="stopBtn" onclick="stopGeneration()">■ Stop</button>
         <div class="input-wrapper">
-          <textarea id="chatInput" rows="1" placeholder="Kirim pesan..." oninput="autoResize(this)" onkeydown="handleKeyDown(event)" onclick="checkWelcome()"></textarea>
+          <textarea id="chatInput" rows="1" placeholder="Kirim pesan..." oninput="autoResize(this)" onkeydown="handleKeyDown(event)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           </button>
@@ -266,7 +237,6 @@ let thinkingPhaseIndex = 0;
 // ============ DOM ============
 const messagesEl = document.getElementById('messages');
 const messagesInner = document.getElementById('messagesInner');
-const welcomeScreen = document.getElementById('welcomeScreen');
 const chatInput = document.getElementById('chatInput');
 const sendBtn = document.getElementById('sendBtn');
 const stopBtn = document.getElementById('stopBtn');
@@ -297,9 +267,6 @@ function handleKeyDown(e) {
   }
 }
 
-function checkWelcome() {
-  if (welcomeScreen) welcomeScreen.style.display = 'none';
-}
 
 // ============ SEND MESSAGE ============
 async function sendMessage() {
@@ -310,8 +277,6 @@ async function sendMessage() {
   autoResize(chatInput);
   sendBtn.disabled = true;
   sendBtn.classList.remove('active');
-
-  if (welcomeScreen) welcomeScreen.style.display = 'none';
   
   // Add user message
   addMessage('user', text);
@@ -531,54 +496,18 @@ updateMessage = function(id, content) {
 };
 
 // ============ SUGGESTIONS ============
-function suggestClick(text) {
-  chatInput.value = text;
-  autoResize(chatInput);
-  sendBtn.disabled = false;
-  sendBtn.classList.add('active');
-  sendMessage();
-}
 
 // ============ NEW CHAT ============
 function newChat() {
   messages = [];
-  messagesInner.innerHTML = '';
-  // Re-add welcome
-  const welcome = document.createElement('div');
-  welcome.className = 'welcome';
-  welcome.id = 'welcomeScreen';
-  welcome.innerHTML = `
-    <div class="logo-large">B</div>
-    <h2>Ada yang bisa saya bantu?</h2>
-    <p>Saya adalah asisten AI berbasis Groq Llama. Tanyakan apa saja!</p>
-    <div class="suggestions">
-      <button class="suggestion-btn" onclick="suggestClick('Jelaskan apa itu artificial intelligence')">
-        <div class="label">🧠 Apa itu AI?</div>
-        <div class="desc">Penjelasan sederhana tentang AI</div>
-      </button>
-      <button class="suggestion-btn" onclick="suggestClick('Bantu saya belajar coding Python')">
-        <div class="label">💻 Belajar Python</div>
-        <div class="desc">Panduan coding untuk pemula</div>
-      </button>
-      <button class="suggestion-btn" onclick="suggestClick('Buatkan saya resep masakan sederhana')">
-        <div class="label">🍳 Resep Masakan</div>
-        <div class="desc">Ide masakan sehari-hari</div>
-      </button>
-      <button class="suggestion-btn" onclick="suggestClick('Tulis cerita pendek inspiratif')">
-        <div class="label">📖 Cerita Inspiratif</div>
-        <div class="desc">Cerita pendek yang memotivasi</div>
-      </button>
-    </div>
-  `;
-  messagesInner.appendChild(welcome);
-  
-  chatInput.value = '';
+  messagesInner.innerHTML = "";
+  chatInput.value = "";
   autoResize(chatInput);
   sendBtn.disabled = true;
-  sendBtn.classList.remove('active');
-  headerTitle.textContent = "";;
+  sendBtn.classList.remove("active");
+  headerTitle.textContent = "Bot AI";
   activeChatId = null;
-  localStorage.removeItem('bot_ai_active_chat');
+  localStorage.removeItem("bot_ai_active_chat");
   
   if (window.innerWidth <= 768) toggleSidebar();
   renderChatList();
@@ -592,7 +521,7 @@ function clearHistory() {
   activeChatId = null;
   messages = [];
   messagesInner.innerHTML = "";
-  headerTitle.textContent = "";;
+  headerTitle.textContent = "Bot AI";
   renderChatList();
   newChat();
 }
@@ -642,8 +571,6 @@ function loadChat(chatId) {
   activeChatId = chatId;
   localStorage.setItem('bot_ai_active_chat', activeChatId);
   messagesInner.innerHTML = '';
-  
-  if (welcomeScreen) welcomeScreen.style.display = 'none';
   
   messages = [];
   chat.messages.forEach(msg => {

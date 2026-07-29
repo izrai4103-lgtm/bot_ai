@@ -39,6 +39,11 @@ function savePlain(data) {
   }
 }
 
+function stripThinkTags(text) {
+  // Strip <think>...</think> and <Thinking>...</Thinking> reasoning tags
+  return text.replace(/<[Tt]hink>[\s\S]*?<\/[Tt]hink>/g, '').trim();
+}
+
 function addLearning(userMsg, aiMsg) {
   const plain = loadPlain();
   if (plain.learnings.length > 500) {
@@ -260,13 +265,13 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
           for await (const chunk of streamResp) {
             const content = chunk.choices[0]?.delta?.content || '';
             if (content) fullResponse += content;
-            res.write(`data: ${JSON.stringify({ choices: [{ delta: { content }, index: 0 }] })}\n\n`);
+            res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: stripThinkTags(content) }, index: 0 }] })}\n\n`);
           }
 
           // Save to plain.json
           const lastMsg = messages[messages.length - 1];
           if (lastMsg && fullResponse) {
-            addLearning(lastMsg.content || '', fullResponse);
+            addLearning(lastMsg.content || '', stripThinkTags(fullResponse));
           }
 
           res.write(`data: [DONE]\n\n`);
@@ -353,11 +358,11 @@ ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
         for await (const chunk of streamResp) {
           const content = chunk.choices[0]?.delta?.content || '';
           if (content) fullResponse += content;
-          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          res.write(`data: ${JSON.stringify({ content: stripThinkTags(content) })}\n\n`);
         }
 
         if (fullResponse) {
-          addLearning(message, fullResponse);
+          addLearning(message, stripThinkTags(fullResponse));
         }
 
         res.write(`data: [DONE]\n\n`);

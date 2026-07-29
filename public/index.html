@@ -289,6 +289,24 @@ function toggleWebSearch() {
   }
 }
 
+// Check web search availability
+async function checkWebSearch() {
+  try {
+    const res = await fetch('/api/web/config');
+    const data = await res.json();
+    const btn = document.getElementById('searchToggle');
+    if (btn) {
+      if (!data.available) {
+        btn.title = 'Google API Key belum dikonfigurasi. Web search mungkin terbatas.';
+        btn.style.opacity = '0.6';
+      }
+    }
+  } catch(e) {}
+}
+
+// Check on init
+checkWebSearch();
+
 // Search the web directly
 async function searchWeb(query) {
   try {

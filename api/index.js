@@ -83,7 +83,25 @@ const SEARCH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit
 
 // Search the web using DuckDuckGo Lite (simpler, more reliable HTML)
 async function webSearch(query) {
-  // Strategy 1: Try DuckDuckGo API (instant answers)
+  // Try Google Programmable Search API if configured
+  const googleKey = process.env.GOOGLE_API_KEY;
+  const googleCx = process.env.GOOGLE_CX;
+  if (googleKey && googleCx) {
+    try {
+      const gUrl = 'https://www.googleapis.com/customsearch/v1?key=' + encodeURIComponent(googleKey) + '&cx=' + encodeURIComponent(googleCx) + '&q=' + encodeURIComponent(query) + '&lr=lang_id&num=5';
+      const resp = await fetch(gUrl, { signal: AbortSignal.timeout(10000) });
+      const data = await resp.json();
+      if (data.items && Array.isArray(data.items)) {
+        return data.items.map(item => ({
+          url: item.link || '',
+          title: item.title || '',
+          snippet: (item.snippet || '').substring(0, 500)
+        })).slice(0, 5);
+      }
+    } catch (err) { console.error('Google API fail:', err.message); }
+  }
+
+  // Fallback: Try DuckDuckGo API (may be blocked on some hosts)
   try {
     const ddgUrl = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json&no_html=1&skip_disambig=1';
     const resp = await fetch(ddgUrl, { 
@@ -91,7 +109,7 @@ async function webSearch(query) {
       signal: AbortSignal.timeout(10000)
     });
     const text = await resp.text();
-    if (text) {
+    if (text && text.length > 10) {
       const data = JSON.parse(text);
       const results = [];
       if (data.AbstractText) {
@@ -102,15 +120,15 @@ async function webSearch(query) {
       }
       if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
         for (const t of data.RelatedTopics) {
-          if (results.length >= 8) break;
+          if (results.length >= 5) break;
           if (t.Text) results.push({ url: t.FirstURL || 'https://duckduckgo.com', title: t.Text.split(' - ')[0] || query, snippet: t.Text.substring(0, 500) });
         }
       }
-      if (results.length > 0) return results.slice(0, 5);
+      if (results.length > 0) return results;
     }
   } catch (err) { console.error('DDG API fail:', err.message); }
 
-  // Strategy 2: Scrape DuckDuckGo HTML results
+  // Fallback: Try DuckDuckGo HTML search
   try {
     const htmlResp = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query), {
       headers: { 'User-Agent': SEARCH_USER_AGENT },
@@ -118,7 +136,6 @@ async function webSearch(query) {
     });
     const html = await htmlResp.text();
     const results = [];
-    // Use simpler extraction - find all result links
     const resultRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
     const snippetRegex = /class="result__snippet"[^>]*>([\s\S]*?)<\//gi;
     const urls = [], titles = [], snippets = [];
@@ -138,27 +155,6 @@ async function webSearch(query) {
     }
     if (results.length > 0) return results;
   } catch (err) { console.error('DDG HTML fail:', err.message); }
-
-  // Strategy 3: Try to use a different SearXNG instance or direct Google scrape
-  try {
-    const googleResp = await fetch('https://www.google.com/search?q=' + encodeURIComponent(query), {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
-      signal: AbortSignal.timeout(8000)
-    });
-    const html = await googleResp.text();
-    const results = [];
-    // Parse Google results
-    const gRegex = /<a[^>]*href="\/url\?q=([^"&]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
-    let m;
-    while ((m = gRegex.exec(html)) !== null && results.length < 5) {
-      results.push({
-        url: decodeURIComponent(m[1]),
-        title: m[2].replace(/<[^>]*>/g, '').trim(),
-        snippet: ''
-      });
-    }
-    if (results.length > 0) return results;
-  } catch (err) { console.error('Google fail:', err.message); }
 
   return [];
 }
@@ -350,7 +346,20 @@ export default async function handler(req, res) {
 
     
 
-    // ============ WEB SEARCH & BROWSE API ============
+    
+    // ============ WEB SEARCH CONFIG ============
+    if (path === '/api/web/config') {
+      const hasGoogleKey = !!(process.env.GOOGLE_API_KEY && process.env.GOOGLE_CX);
+      return res.json({
+        available: hasGoogleKey,
+        google_configured: hasGoogleKey,
+        ddg_available: true,
+        message: hasGoogleKey ? 'Web search siap digunakan' : 'Google API Key belum dikonfigurasi. Web search mungkin terbatas.',
+        how_to_configure: 'Set GOOGLE_API_KEY dan GOOGLE_CX di environment variables Vercel. Dapatkan API key gratis di https://developers.google.com/custom-search/v1/introduction'
+      });
+    }
+
+// ============ WEB SEARCH & BROWSE API ============
     if (path === '/api/web/search' && method === 'POST') {
       const { query } = body;
       if (!query) return res.json({ results: [], error: 'Query diperlukan' });

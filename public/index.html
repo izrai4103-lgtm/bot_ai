@@ -1,164 +1,196 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="light">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover" />
-  <meta name="theme-color" content="#343541" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,interactive-widget=resizes-content" />
+  <meta name="theme-color" content="#ffffff" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>Chat AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-  <style>
-    :root {
-      --white: #ffffff;
-      --black: #343541;
-      --gray: #f7f7f8;
-      --gray-border: #e5e5e5;
-      --gray-text: #8e8ea0;
-      --gray-light: #ececf1;
-      --primary: #10a37f;
-      --primary-hover: #0e8c6b;
-      --sidebar-bg: #202123;
-      --sidebar-text: #ffffff;
-      --sidebar-hover: #2a2b32;
-      --sidebar-active: #343541;
-      --user-avatar: #5436da;
-      --assistant-avatar: #10a37f;
-      --send-bg: #343541;
-      --send-hover: #1d1d1e;
-      --shadow: 0 2px 6px rgba(0,0,0,.02);
-      --shadow-hover: 0 2px 12px rgba(0,0,0,.04);
-      --radius: 10px;
-      --max-width: 800px;
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            gray: {
+              50: '#f9fafb',
+              100: '#f3f4f6',
+              200: '#e5e7eb',
+              300: '#d1d5db',
+              400: '#9ca3af',
+              500: '#6b7280',
+              600: '#4b5563',
+              700: '#374151',
+              800: '#1f2937',
+              850: '#1a1d23',
+              900: '#111827',
+              950: '#030712'
+            }
+          }
+        }
+      }
     }
+  </script>
+  <style>
+    html,body{height:100%;overflow:hidden;margin:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif}
 
-    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-    html,body{height:100%;overflow:hidden}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--sidebar-bg);color:var(--black);-webkit-font-smoothing:antialiased}
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(215,215,215,.6);border-radius:999px;border:1px solid #fff}
+    .dark ::-webkit-scrollbar-thumb{background:rgba(67,67,67,.6);border-color:#000}
 
-    #app{width:100%;max-width:var(--max-width);height:100dvh;margin:0 auto;display:flex;flex-direction:column;background:var(--white);position:relative}
-    @media(min-width:768px){#app{box-shadow:0 0 0 1px rgba(0,0,0,.04)}}
+    /* ── Layout ── */
+    #app{display:flex;height:100dvh;width:100%}
+    @media(min-width:768px){#app{max-width:1000px;margin:0 auto;box-shadow:0 0 0 1px rgba(0,0,0,.08)}}
 
-    /* ── HEADER: ChatGPT style ── */
-    .header{display:flex;align-items:center;justify-content:center;padding:10px 14px;flex-shrink:0;padding-top:calc(10px+env(safe-area-inset-top,0px));border-bottom:1px solid var(--gray-border);background:var(--white);position:relative;z-index:10}
-    .header h1{font-size:14px;font-weight:600;color:var(--black);display:flex;align-items:center;gap:6px;letter-spacing:-.2px}
-    .header h1 .badge{font-weight:400;color:var(--gray-text);background:var(--gray);padding:2px 7px;border-radius:4px;font-size:10px;letter-spacing:.2px}
-    .header-right{position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;gap:2px}
-    .hbtn{width:32px;height:32px;border:none;border-radius:6px;background:transparent;color:var(--gray-text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:background .15s}
-    .hbtn:hover{background:var(--gray);color:var(--black)}
-    .hbtn:active{background:var(--gray-light)}
+    /* ── Sidebar ── */
+    .sidebar{width:260px;flex-shrink:0;background:#171717;color:#fff;display:flex;flex-direction:column;overflow:hidden}
+    .dark .sidebar{background:#000}
+    .sidebar-header{padding:14px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:8px}
+    .sidebar-header h1{font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px}
+    .sidebar-header h1 .badge{font-size:9px;background:rgba(255,255,255,.1);padding:1px 6px;border-radius:4px;font-weight:400}
+    .sidebar-body{flex:1;overflow-y:auto;padding:8px}
 
-    /* ── CHAT MESSAGES ── */
-    .chat-box{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--white)}
-    .chat-inner{max-width:700px;margin:0 auto}
+    /* ── Main chat ── */
+    .main{flex:1;display:flex;flex-direction:column;background:#fff;min-width:0}
+    .dark .main{background:#1f2937;color:#e5e7eb}
 
-    .msg{display:flex;gap:16px;padding:14px 16px;line-height:1.6;animation:fi .2s ease both;border-bottom:1px solid transparent}
-    @media(min-width:640px){.msg{padding:16px 24px;gap:20px}}
+    /* ── Messages ── */
+    .chat-box{flex:1;overflow-y:auto;overflow-anchor:none;-webkit-overflow-scrolling:touch}
+    .chat-inner{max-width:58rem;margin:0 auto;padding:8px 0;width:100%}
+
+    .msg{display:flex;gap:10px;padding:10px 14px;line-height:1.6;animation:fi .2s ease both}
+    @media(min-width:640px){.msg{padding:12px 20px;gap:14px}}
     @keyframes fi{from{opacity:0}to{opacity:1}}
 
-    .msg.assistant{background:var(--gray)}
-    .msg.user{background:var(--white)}
+    .msg-avatar{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;margin-top:2px;overflow:hidden}
+    .msg.user .msg-avatar{background:#5436da;color:#fff}
+    .msg.assistant .msg-avatar{background:#10a37f;color:#fff;font-size:13px}
+    .dark .msg.user .msg-avatar{background:#7c5cfc}
+    .dark .msg.assistant .msg-avatar{background:#0d9e7a}
 
-    .msg-avatar{width:30px;height:30px;border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;margin-top:2px}
-    .msg.user .msg-avatar{background:var(--user-avatar);color:var(--white);font-size:13px}
-    .msg.assistant .msg-avatar{background:var(--assistant-avatar);color:var(--white);font-size:14px}
+    .msg-body{flex:1;min-width:0;font-size:14px;color:#374151;line-height:1.65}
+    .dark .msg-body{color:#e5e7eb}
 
-    .msg-body{flex:1;min-width:0;font-size:14px;color:var(--black);line-height:1.65;overflow:hidden}
+    .msg-name{font-size:13px;font-weight:600;color:#111827;margin-bottom:2px}
+    .dark .msg-name{color:#f3f4f6}
+    .msg-name .time{font-weight:400;color:#9ca3af;font-size:11px;margin-left:6px}
 
     /* markdown */
-    .msg-body p{margin-bottom:8px}
+    .msg-body p{margin-bottom:6px}
     .msg-body p:last-child{margin-bottom:0}
     .msg-body ul,.msg-body ol{padding-left:20px;margin:6px 0}
-    .msg-body li{margin-bottom:3px}
-    .msg-body code{background:var(--gray-light);padding:2px 5px;border-radius:3px;font-size:13px;font-family:'SF Mono','Fira Code',monospace;color:var(--black)}
-    .msg-body pre{margin:8px 0;border-radius:6px;overflow:hidden;border:1px solid var(--gray-border)}
-    .msg-body pre code{background:var(--gray);padding:12px 14px;display:block;overflow-x:auto;font-size:13px;line-height:1.5;border-radius:6px}
-    .msg-body blockquote{border-left:3px solid var(--gray-border);padding:3px 10px;margin:8px 0;color:var(--gray-text)}
-    .msg-body table{border-collapse:collapse;margin:8px 0;width:100%;font-size:13px}
-    .msg-body th,.msg-body td{border:1px solid var(--gray-border);padding:5px 10px;text-align:left}
-    .msg-body th{background:var(--gray);font-weight:600}
-    .msg-body a{color:var(--primary);text-decoration:none}
+    .msg-body li{margin-bottom:2px}
+    .msg-body code{background:#f3f4f6;padding:2px 5px;border-radius:3px;font-size:13px;font-family:'SF Mono','Fira Code',monospace;color:#1f2937}
+    .dark .msg-body code{background:#374151;color:#e5e7eb}
+    .msg-body pre{margin:8px 0;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb}
+    .dark .msg-body pre{border-color:#374151}
+    .msg-body pre code{background:#f9fafb;padding:12px 14px;display:block;overflow-x:auto;font-size:13px;line-height:1.5}
+    .dark .msg-body pre code{background:#1f2937}
+    .msg-body blockquote{border-left:3px solid #e5e7eb;padding:3px 10px;margin:6px 0;color:#6b7280}
+    .msg-body table{border-collapse:collapse;margin:6px 0;width:100%}
+    .msg-body th,.msg-body td{border:1px solid #e5e7eb;padding:4px 8px;text-align:left;font-size:13px}
+    .msg-body th{background:#f9fafb;font-weight:600}
+    .msg-body a{color:#10a37f;text-decoration:none}
     .msg-body a:hover{text-decoration:underline}
-    .msg-body h1,.msg-body h2,.msg-body h3,.msg-body h4{margin:12px 0 6px;font-weight:600;color:var(--black)}
-    .msg-body h1{font-size:18px}.msg-body h2{font-size:16px}.msg-body h3{font-size:14px}
-    .msg-body hr{margin:12px 0;border:none;border-top:1px solid var(--gray-border)}
+    .msg-body h1,.msg-body h2,.msg-body h3,.msg-body h4{margin:10px 0 4px;font-weight:600;color:#111827}
+    .dark .msg-body h1,.dark .msg-body h2,.dark .msg-body h3,.dark .msg-body h4{color:#f3f4f6}
+    .msg-body h1{font-size:17px}.msg-body h2{font-size:15px}.msg-body h3{font-size:14px}
 
-    .stream-cursor::after{content:'▊';animation:blink .8s step-end infinite;color:var(--black)}
+    .stream-cursor::after{content:'▊';animation:blink .8s step-end infinite;color:#6b7280}
     @keyframes blink{50%{opacity:0}}
 
-    .msg-footer{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:var(--gray-text)}
+    /* ── Input ── */
+    .input-wrap{flex-shrink:0;padding:12px 16px 16px;padding-bottom:calc(16px+env(safe-area-inset-bottom,0px));border-top:1px solid #e5e7eb}
+    .dark .input-wrap{border-color:#374151}
+    .input-inner{display:flex;align-items:flex-end;gap:8px;max-width:58rem;margin:0 auto;padding:8px 8px 8px 16px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+    .input-inner:focus-within{border-color:#10a37f}
+    .dark .input-inner{background:#1f2937;border-color:#4b5563}
+    .dark .input-inner:focus-within{border-color:#10a37f}
+    .input-inner textarea{flex:1;border:none;background:transparent;color:#374151;font-size:14px;font-family:inherit;line-height:1.5;outline:none;resize:none;-webkit-appearance:none;min-height:24px;max-height:120px;padding:2px 0}
+    .dark .input-inner textarea{color:#e5e7eb}
+    .input-inner textarea::placeholder{color:#9ca3af}
 
-    /* ── EMPTY ── */
-    .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:100px 24px 60px;text-align:center}
-    .empty .logo{width:48px;height:48px;border-radius:12px;background:var(--gray);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px}
-    .empty h2{font-size:20px;font-weight:600;color:var(--black);margin-bottom:6px}
-    .empty p{font-size:13px;color:var(--gray-text);margin-bottom:24px}
-    .empty .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:400px}
-    .empty .chips button{background:var(--gray);border:1px solid var(--gray-border);border-radius:100px;padding:6px 14px;font-size:12px;color:var(--black);cursor:pointer;transition:all .15s;white-space:nowrap}
-    .empty .chips button:hover{background:var(--gray-light);border-color:var(--gray-text)}
-
-    /* ── INPUT: ChatGPT style ── */
-    .input-wrap{flex-shrink:0;padding:0 16px 16px;padding-bottom:calc(16px+env(safe-area-inset-bottom,0px));background:var(--white)}
-    .input-inner{display:flex;align-items:flex-end;max-width:700px;margin:0 auto;padding:6px 6px 6px 14px;border:1px solid var(--gray-border);border-radius:var(--radius);background:var(--white);position:relative;box-shadow:var(--shadow);transition:border-color .2s,box-shadow .2s}
-    .input-inner:focus-within{border-color:var(--gray-text);box-shadow:var(--shadow-hover)}
-    .input-inner textarea{flex:1;border:none;background:transparent;color:var(--black);font-size:14px;font-family:inherit;line-height:1.5;outline:none;resize:none;-webkit-appearance:none;min-height:28px;max-height:140px;padding:2px 0}
-    .input-inner textarea::placeholder{color:var(--gray-text)}
-    .input-inner textarea:disabled{opacity:.4}
-
-    .input-actions{display:flex;gap:2px;flex-shrink:0}
-    .send-btn,.stop-btn{width:32px;height:32px;border:none;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
-    .stop-btn{background:#ef4444;color:var(--white);display:none}
+    .input-actions{display:flex;gap:4px;flex-shrink:0}
+    .send-btn,.stop-btn{width:28px;height:28px;border:none;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+    .stop-btn{background:#ef4444;color:#fff;display:none}
     .stop-btn:hover{background:#dc2626}
-    .send-btn{background:var(--send-bg);color:var(--white)}
-    .send-btn:hover{background:var(--send-hover)}
+    .send-btn{background:#111827;color:#fff}
+    .send-btn:hover{background:#374151}
     .send-btn:active,.stop-btn:active{transform:scale(.9)}
-    .send-btn:disabled{background:var(--gray-light);color:var(--gray-text);cursor:default;transform:none}
-    .send-btn svg,.stop-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .send-btn:disabled{background:#9ca3af;cursor:default;transform:none}
+    .dark .send-btn{background:#3b82f6}
+    .dark .send-btn:hover{background:#2563eb}
+    .dark .send-btn:disabled{background:#4b5563}
+    .send-btn svg,.stop-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
-    /* ── TOAST ── */
-    .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);background:rgba(0,0,0,.85);backdrop-filter:blur(12px);color:var(--white);padding:10px 22px;border-radius:10px;font-size:13px;opacity:0;transition:all .2s ease;pointer-events:none;z-index:100;text-align:center;max-width:260px}
+    /* ── Empty ── */
+    .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:100px 24px 60px;text-align:center}
+    .empty h2{font-size:18px;font-weight:600;color:#111827;margin-bottom:4px}
+    .dark .empty h2{color:#f3f4f6}
+    .empty p{font-size:13px;color:#6b7280;margin-bottom:20px}
+    .empty .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+    .empty .chips button{background:#f9fafb;border:1px solid #e5e7eb;border-radius:999px;padding:5px 12px;font-size:12px;color:#374151;cursor:pointer;transition:all .15s}
+    .empty .chips button:hover{background:#f3f4f6;border-color:#9ca3af}
+    .dark .empty .chips button{background:#1f2937;border-color:#374151;color:#e5e7eb}
+    .dark .empty .chips button:hover{background:#374151;border-color:#6b7280}
+
+    /* ── Mobile ── */
+    @media(max-width:767px){.sidebar{display:none}}
+
+    /* ── Toast ── */
+    .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);background:rgba(0,0,0,.85);backdrop-filter:blur(12px);color:#fff;padding:10px 22px;border-radius:10px;font-size:13px;opacity:0;transition:all .2s ease;pointer-events:none;z-index:100;text-align:center;max-width:260px}
     .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- HEADER -->
-    <div class="header">
-      <h1>Chat AI <span class="badge">GROQ</span></h1>
-      <div class="header-right">
-        <button class="hbtn" onclick="resetChat()" title="New chat">✕</button>
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h1>Chat AI <span class="badge">GROQ</span></h1>
+      </div>
+      <div class="sidebar-body">
+        <div class="text-xs text-gray-400 px-2 py-1">Chats</div>
+        <div class="text-xs text-gray-500 px-2 py-8 text-center">Belum ada chat</div>
       </div>
     </div>
 
-    <!-- CHAT -->
-    <div class="chat-box" id="chatBox">
-      <div class="chat-inner" id="chatInner">
-        <div class="empty">
-          <div class="logo">✦</div>
-          <h2>Ada yang bisa saya bantu?</h2>
-          <p>Groq Llama 3.3 70B — streaming, bahasa Indonesia</p>
-          <div class="chips">
-            <button onclick="quick('Jelaskan machine learning')">🧠 ML</button>
-            <button onclick="quick('Buat kode Python web scraper')">🐍 Python</button>
-            <button onclick="quick('Apa itu API?')">🌐 API</button>
+    <!-- MAIN -->
+    <div class="main">
+      <!-- MESSAGES -->
+      <div class="chat-box" id="chatBox">
+        <div class="chat-inner" id="chatInner">
+          <div class="empty" id="emptyState">
+            <h2>Ada yang bisa saya bantu?</h2>
+            <p>Groq Llama 3.3 70B — streaming, bahasa Indonesia</p>
+            <div class="chips">
+              <button onclick="quick('Jelaskan machine learning')">🧠 ML</button>
+              <button onclick="quick('Buat kode Python')">🐍 Python</button>
+              <button onclick="quick('Apa itu API?')">🌐 API</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- INPUT -->
-    <div class="input-wrap">
-      <div class="input-inner">
-        <textarea id="inputMsg" rows="1" placeholder="Kirim pesan..." autofocus></textarea>
-        <div class="input-actions">
-          <button class="stop-btn" id="stopBtn" onclick="stopStream()">
-            <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
-          </button>
-          <button class="send-btn" id="sendBtn" onclick="sendMsg()">
-            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
+      <!-- INPUT -->
+      <div class="input-wrap">
+        <div class="input-inner">
+          <textarea id="inputMsg" rows="1" placeholder="Kirim pesan..." autofocus></textarea>
+          <div class="input-actions">
+            <button class="stop-btn" id="stopBtn" onclick="stopStream()">
+              <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+            </button>
+            <button class="send-btn" id="sendBtn" onclick="sendMsg()">
+              <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -169,7 +201,7 @@
   <script>
     const $ = id => document.getElementById(id)
     const inner = $('chatInner'), input = $('inputMsg'), btn = $('sendBtn'), stopBtn = $('stopBtn')
-    const toast = $('toast'), chatBox = $('chatBox')
+    const toast = $("toast"), chatBox = $('chatBox')
 
     let history = [], busy = false, tt = null, ac = null
 
@@ -177,13 +209,24 @@
 
     input.addEventListener('input', () => {
       input.style.height = 'auto'
-      input.style.height = Math.min(input.scrollHeight, 140) + 'px'
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px'
     })
     input.addEventListener('keydown', e => {
       if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg() }
     })
 
     function quick(t) { input.value = t; sendMsg() }
+
+    function append(role, text) {
+      const u = role === 'user'
+      const t = new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})
+      const _empty=inner.querySelector(".empty");if(_empty)_empty.remove()
+
+      const div = document.createElement('div')
+      div.className = `msg ${u ? 'user' : 'assistant'}`
+      div.innerHTML = `<div class="msg-avatar">${u ? 'U' : '✦'}</div><div class="msg-body"><div class="msg-name">${u ? 'Kamu' : 'Asisten'}<span class="time">${t}</span></div><div class="msg-content">${esc(text)}</div></div>`
+      inner.appendChild(div)
+    }
 
     async function sendMsg() {
       const text = input.value.trim()
@@ -192,15 +235,13 @@
       append('user', text)
       input.value = ''; input.style.height = 'auto'
       busy = true; btn.style.display = 'none'; stopBtn.style.display = 'flex'; input.disabled = true
-
-      const empty = inner.querySelector('.empty')
-      if(empty) empty.remove()
+      const _empty=inner.querySelector(".empty");if(_empty)_empty.remove()
 
       const div = document.createElement('div')
       div.className = 'msg assistant'
-      div.innerHTML = '<div class="msg-avatar">✦</div><div class="msg-body"><span class="stream-cursor"></span></div>'
+      div.innerHTML = '<div class="msg-avatar">✦</div><div class="msg-body"><div class="msg-name">Asisten</div><div class="msg-content"><span class="stream-cursor"></span></div></div>'
       inner.appendChild(div)
-      const ce = div.querySelector('.msg-body')
+      const ce = div.querySelector('.msg-content')
 
       try {
         ac = new AbortController()
@@ -251,16 +292,13 @@
         }
 
         const sp=chatBox.scrollTop,sh=chatBox.scrollHeight
-        ce.innerHTML = ce.innerHTML.replace('<span class="stream-cursor"></span>','')
         ce.innerHTML = marked.parse(reply)
         if(chatBox.scrollHeight!==sh) chatBox.scrollTop=sp
         if(typeof hljs !== 'undefined') document.querySelectorAll('pre code').forEach(b=>hljs.highlightElement(b))
 
         const t = new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})
-        const ftr = document.createElement('div')
-        ftr.className = 'msg-footer'
-        ftr.innerHTML = t
-        ce.appendChild(ftr)
+        const nameEl = div.querySelector('.msg-name')
+        if(nameEl) nameEl.innerHTML = 'Asisten <span class="time">' + t + '</span>'
 
         history.push({role:'user', content:text})
         history.push({role:'assistant', content:reply})
@@ -276,22 +314,10 @@
 
     function stopStream() { if(ac) { ac.abort(); ac=null; show('Dibentikan') } }
 
-    function append(role, text) {
-      const u = role === 'user'
-      const t = new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})
-      const empty = inner.querySelector('.empty')
-      if(empty) empty.remove()
-
-      const div = document.createElement('div')
-      div.className = `msg ${u ? 'user' : 'assistant'}`
-      div.innerHTML = `<div class="msg-avatar">${u ? 'U' : '✦'}</div><div class="msg-body">${esc(text)}<div class="msg-footer">${t}</div></div>`
-      inner.appendChild(div)
-    }
-
     function resetChat() {
       if(!inner.querySelectorAll('.msg').length) return
       history = []; inner.innerHTML = ''
-      inner.innerHTML = '<div class="empty"><div class="logo">✦</div><h2>Ada yang bisa saya bantu?</h2><p>Groq Llama 3.3 70B — streaming, bahasa Indonesia</p><div class="chips"><button onclick="quick(\'Jelaskan machine learning\')">🧠 ML</button><button onclick="quick(\'Buat kode Python web scraper\')">🐍 Python</button><button onclick="quick(\'Apa itu API?\')">🌐 API</button></div></div>'
+      inner.innerHTML = '<div class="empty" id="emptyState"><h2>Ada yang bisa saya bantu?</h2><p>Groq Llama 3.3 70B — streaming, bahasa Indonesia</p><div class="chips"><button onclick="quick(\'Jelaskan machine learning\')">🧠 ML</button><button onclick="quick(\'Buat kode Python\')">🐍 Python</button><button onclick="quick(\'Apa itu API?\')">🌐 API</button></div></div>'
       show('Percakapan baru')
     }
 

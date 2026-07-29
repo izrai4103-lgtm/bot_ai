@@ -239,8 +239,11 @@
               if(data.done) { reply = data.fullContent || reply; continue }
               if(data.content) {
                 reply += data.content
+                
+                var _sp=chatBox.scrollTop,_sh=chatBox.scrollHeight;
                 try { ce.innerHTML = marked.parse(reply) + '<span class="stream-cursor"></span>' }
                 catch(e) { ce.innerHTML = esc(reply) + '<span class="stream-cursor"></span>' }
+                if(chatBox.scrollHeight!==_sh) chatBox.scrollTop=_sp;
 
               }
             } catch(e) {
@@ -250,7 +253,9 @@
         }
 
         ce.classList.remove('stream-cursor')
+        var _sp2=chatBox.scrollTop,_sh2=chatBox.scrollHeight;
         ce.innerHTML = marked.parse(reply)
+        if(chatBox.scrollHeight!==_sh2) chatBox.scrollTop=_sp2;
         if(typeof hljs !== 'undefined') document.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
 
         const t = new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})

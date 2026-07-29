@@ -2,133 +2,124 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <title>Bot AI</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <title>Chat AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
   <style>
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-    html,body{height:100%;overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;background:#f2f2f7;color:#1c1c1e}
-    body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Helvetica Neue',Arial,sans-serif}
+    html,body{height:100%;overflow:hidden}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:#fff;color:#343541;-webkit-font-smoothing:antialiased}
 
-    ::-webkit-scrollbar{width:4px}
-    ::-webkit-scrollbar-track{background:transparent}
-    ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.1);border-radius:4px}
-
-    /* Container */
-    #app{width:100%;max-width:440px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;background:#fff;position:relative}
-    @media(min-width:640px){#app{height:85dvh;max-height:740px;border-radius:14px;margin:5vh auto;box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 32px rgba(0,0,0,.06)}}
-    @media(max-height:500px) and (orientation:landscape){#app{max-width:100%;height:100dvh;border-radius:0}}
+    #app{width:100%;max-width:800px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;background:#fff}
+    @media(min-width:768px){#app{border-left:1px solid #e5e5e5;border-right:1px solid #e5e5e5}}
+    @media(max-height:500px) and (orientation:landscape){#app{max-width:100%}}
 
     /* Header */
-    .header{display:flex;align-items:center;gap:12px;padding:12px 16px;flex-shrink:0;padding-top:calc(12px + env(safe-area-inset-top,0px));border-bottom:1px solid #e5e5ea;background:#fff;z-index:2}
-    .header-back{width:36px;height:36px;border:none;border-radius:50%;background:#f2f2f7;color:#007aff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;transition:background .15s}
-    .header-back:hover{background:#e5e5ea}
-    .header-back:active{background:#d1d1d6}
-
-    .header-avatar{width:36px;height:36px;border-radius:50%;background:#f2f2f7;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;overflow:hidden;position:relative}
-    .header-avatar::after{content:'';position:absolute;inset:0;border-radius:50%;border:1px solid rgba(0,0,0,.04)}
-    .header-info{flex:1;min-width:0}
-    .header-info .name{font-size:16px;font-weight:600;line-height:1.3;color:#1c1c1e}
-    .header-info .status{font-size:12px;color:#8e8e93;display:flex;align-items:center;gap:4px;margin-top:1px}
-
-    .online-dot{width:6px;height:6px;border-radius:50%;background:#34c759;display:inline-block;flex-shrink:0}
-    .online-dot.off{background:#c7c7cc}
-
-    .header-right{display:flex;gap:4px}
-    .header-icon{width:36px;height:36px;border:none;border-radius:8px;background:transparent;color:#007aff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:background .15s;flex-shrink:0}
-    .header-icon:hover{background:#f2f2f7}
-    .header-icon:active{background:#e5e5ea}
+    .header{display:flex;align-items:center;justify-content:center;padding:14px 16px;flex-shrink:0;padding-top:calc(14px + env(safe-area-inset-top,0px));border-bottom:1px solid #e5e5e5;background:#fff;position:relative}
+    .header h1{font-size:16px;font-weight:600;color:#343541;display:flex;align-items:center;gap:6px}
+    .header h1 .label{font-size:11px;font-weight:500;color:#8e8ea0;background:#f4f4f5;padding:2px 8px;border-radius:100px;letter-spacing:.2px}
+    .header-right{position:absolute;right:16px;top:50%;transform:translateY(-50%);display:flex;gap:6px}
+    .header-btn{width:32px;height:32px;border:none;border-radius:6px;background:transparent;color:#8e8ea0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:background .15s}
+    .header-btn:hover{background:#f4f4f5;color:#343541}
+    .header-btn:active{background:#e5e5e5}
 
     /* Messages */
-    .chat-box{flex:1;overflow-y:auto;padding:8px 14px 4px;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:#fff}
-    .chat-box::before{content:'';display:block;height:4px}
+    .chat-box{flex:1;overflow-y:auto;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:#fff}
+    .chat-box-inner{padding:16px 0 8px;max-width:700px;margin:0 auto;width:100%}
+    @media(min-width:768px){.chat-box-inner{padding:24px 0 8px}}
 
-    /* Message bubbles */
-    .msg{display:flex;margin-bottom:3px;animation:in .15s ease both;padding:1px 0}
-    .msg-right{justify-content:flex-end}
-    .msg-left{justify-content:flex-start}
+    .msg{padding:8px 24px;display:flex;gap:14px;line-height:1.6}
+    @media(min-width:768px){.msg{padding:12px 32px;gap:18px}}
 
-    .msg-body{max-width:78%;position:relative}
-    .msg-bubble{padding:9px 14px;font-size:16px;line-height:1.45;word-wrap:break-word;white-space:pre-wrap;position:relative}
-    .msg-left .msg-bubble{background:#e9e9eb;color:#1c1c1e;border-radius:16px 16px 16px 4px}
-    .msg-right .msg-bubble{background:#007aff;color:#fff;border-radius:16px 16px 4px 16px}
+    .msg.user{background:#fff}
+    .msg.assistant{background:#f7f7f8}
 
-    .msg-time{font-size:11px;color:#8e8e93;margin-top:2px;padding:0 8px;display:flex;gap:3px;align-items:center}
-    .msg-right .msg-time{justify-content:flex-end}
+    .msg-avatar{width:30px;height:30px;border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;margin-top:2px}
+    .msg.user .msg-avatar{background:#5436da;color:#fff;border-radius:4px}
+    .msg.assistant .msg-avatar{background:#10a37f;color:#fff;border-radius:4px}
 
-    .msg-left .msg-time .check{display:none}
-    .msg-right .msg-time .check{display:inline;font-size:10px;color:#34c759}
+    .msg-body{flex:1;min-width:0}
+    .msg-body .content{font-size:15px;color:#343541;white-space:pre-wrap;word-wrap:break-word}
+    .msg-body .content p{margin-bottom:8px}
 
-    /* Consecutive messages */
-    .msg-left + .msg-left{margin-top:1px}
-    .msg-left + .msg-left .msg-bubble{border-radius:16px 16px 16px 4px}
-    .msg-right + .msg-right{margin-top:1px}
-    .msg-right + .msg-right .msg-bubble{border-radius:16px 16px 4px 16px}
+    .msg-footer{display:flex;align-items:center;gap:8px;margin-top:6px}
+    .msg-footer .time{font-size:11px;color:#c5c5d2}
 
-    /* Date divider */
-    .date-divider{text-align:center;margin:16px 0 12px}
-    .date-divider span{background:#f2f2f7;color:#8e8e93;font-size:12px;padding:4px 12px;border-radius:100px;display:inline-block}
-
-    /* Typing indicator */
-    .typing-wrap{display:flex;margin-bottom:3px;padding:1px 0}
-    .typing-bubble{background:#e9e9eb;border-radius:16px 16px 16px 4px;padding:12px 18px;display:flex;align-items:center;gap:5px}
-    .typing-bubble span{width:7px;height:7px;border-radius:50%;background:#aeaeb2;animation:typing 1.3s infinite ease-in-out}
-    .typing-bubble span:nth-child(2){animation-delay:.2s}
-    .typing-bubble span:nth-child(3){animation-delay:.4s}
-    @keyframes typing{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px);background:#636366}}
+    /* Empty state */
+    .empty-state{padding:60px 24px 40px;text-align:center;display:flex;flex-direction:column;align-items:center}
+    .empty-state .icon{font-size:48px;margin-bottom:20px;opacity:.6}
+    .empty-state h2{font-size:20px;font-weight:600;color:#343541;margin-bottom:8px}
+    .empty-state p{font-size:14px;color:#8e8ea0;max-width:360px;line-height:1.5}
+    .empty-state .suggestions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px;max-width:400px}
+    .empty-state .suggestions button{background:#f4f4f5;border:1px solid #e5e5e5;border-radius:100px;padding:8px 16px;font-size:13px;color:#343541;cursor:pointer;transition:background .15s}
+    .empty-state .suggestions button:hover{background:#e5e5e5}
 
     /* Input */
-    .input-area{display:flex;align-items:flex-end;gap:8px;padding:8px 12px 10px;flex-shrink:0;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid #e5e5ea}
+    .input-area{flex-shrink:0;padding:0 16px 16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));background:#fff}
+    @media(max-height:500px){.input-area{padding:0 12px 8px}}
+    .input-wrap-inner{max-width:700px;margin:0 auto;position:relative;border:1px solid #c5c5d2;border-radius:12px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.04);transition:box-shadow .2s,border-color .2s}
+    .input-wrap-inner:focus-within{border-color:#8e8ea0;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+    .input-wrap-inner textarea{width:100%;padding:12px 48px 12px 16px;border:none;border-radius:12px;background:transparent;color:#343541;font-size:15px;font-family:inherit;line-height:1.5;outline:none;resize:none;-webkit-appearance:none;min-height:44px;max-height:160px}
+    .input-wrap-inner textarea::placeholder{color:#8e8ea0}
+    .input-wrap-inner textarea:disabled{opacity:.4}
 
-    .input-wrap{flex:1;position:relative}
-    .input-wrap input{width:100%;padding:10px 16px;border-radius:20px;border:1px solid #e5e5ea;background:#f2f2f7;color:#1c1c1e;font-size:16px;font-family:inherit;outline:none;transition:border-color .2s;-webkit-appearance:none}
-    .input-wrap input:focus{border-color:#007aff;background:#fff}
-    .input-wrap input::placeholder{color:#aeaeb2}
-    .input-wrap input:disabled{opacity:.4}
+    .send-btn{position:absolute;bottom:8px;right:8px;width:34px;height:34px;border:none;border-radius:8px;background:#343541;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,opacity .15s}
+    .send-btn:active{background:#1d1d1e}
+    .send-btn:disabled{background:#c5c5d2;cursor:default}
+    .send-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
-    .send-btn{width:38px;height:38px;border:none;border-radius:50%;background:#007aff;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s,transform .1s;margin-bottom:1px}
-    .send-btn:active{transform:scale(.88)}
-    .send-btn:disabled{background:#e5e5ea;color:#c7c7cc;transform:none;cursor:default}
-    .send-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;margin-left:2px}
+    /* Typing */
+    .typing-indicator{display:flex;align-items:center;gap:4px;padding:4px 0}
+    .typing-indicator span{width:6px;height:6px;border-radius:50%;background:#c5c5d2;animation:typing 1.4s infinite ease-in-out}
+    .typing-indicator span:nth-child(2){animation-delay:.2s}
+    .typing-indicator span:nth-child(3){animation-delay:.4s}
+    @keyframes typing{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-4px);background:#8e8ea0}}
 
     /* Toast */
-    .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);background:rgba(0,0,0,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;opacity:0;transition:all .2s ease;pointer-events:none;z-index:100;text-align:center;max-width:260px}
-    .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
-
-    @keyframes in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+    .toast{position:fixed;top:60px;left:50%;transform:translateX(-50%) translateY(-10px);background:#343541;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;opacity:0;transition:all .2s;pointer-events:none;z-index:100}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   </style>
 </head>
 <body>
   <div id="app">
     <!-- Header -->
     <div class="header">
-      <div class="header-avatar">🤖</div>
-      <div class="header-info">
-        <div class="name">Bot AI</div>
-        <div class="status">
-          <span class="online-dot" id="dot"></span>
-          <span id="status">Online</span>
-        </div>
-      </div>
+      <h1>
+        Chat AI
+        <span class="label">GROQ</span>
+      </h1>
       <div class="header-right">
-        <button class="header-icon" onclick="resetChat()" title="Hapus">⟳</button>
+        <button class="header-btn" onclick="resetChat()" title="New chat">✕</button>
       </div>
     </div>
 
     <!-- Messages -->
-    <div class="chat-box" id="chatBox"></div>
+    <div class="chat-box" id="chatBox">
+      <div class="chat-box-inner" id="chatInner">
+        <div class="empty-state">
+          <div class="icon">💬</div>
+          <h2>Apa yang bisa saya bantu?</h2>
+          <p>Saya menggunakan Groq Llama 3.3 70B — cepat dan gratis.</p>
+          <div class="suggestions">
+            <button onclick="quickAsk('Jelaskan AI dalam bahasa sederhana')">Jelaskan AI</button>
+            <button onclick="quickAsk('Buatkan puisi tentang coding')">Puisi coding</button>
+            <button onclick="quickAsk('Apa itu Groq?')">Apa itu Groq?</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Input -->
     <div class="input-area">
-      <div class="input-wrap">
-        <input type="text" id="inputMsg" placeholder="iMessage" autofocus />
+      <div class="input-wrap-inner">
+        <textarea id="inputMsg" rows="1" placeholder="Kirim pesan..." autofocus></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMsg()">
+          <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
       </div>
-      <button class="send-btn" id="sendBtn" onclick="sendMsg()">
-        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      </button>
     </div>
   </div>
 
@@ -136,25 +127,25 @@
 
   <script>
     const $ = id => document.getElementById(id)
-    const chat = $('chatBox'), input = $('inputMsg'), btn = $('sendBtn')
-    const dot = $('dot'), st = $('status'), toast = $('toast')
+    const chatInner = $('chatInner'), input = $('inputMsg'), btn = $('sendBtn')
+    const toast = $('toast'), chatBox = $('chatBox')
 
-    let h = [], busy = false, tt = null, n = 0
+    let h = [], busy = false, tt = null
 
-    function welcome() {
-      const t = new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})
-      chat.innerHTML = `
-        <div class="date-divider"><span>Hari ini</span></div>
-        <div class="msg msg-left">
-          <div class="msg-body">
-            <div class="msg-bubble">Halo! Ada yang bisa saya bantu?</div>
-            <div class="msg-time">${t}</div>
-          </div>
-        </div>`
+    // Auto-resize textarea
+    input.addEventListener('input', () => {
+      input.style.height = 'auto'
+      input.style.height = Math.min(input.scrollHeight, 160) + 'px'
+    })
+
+    input.addEventListener('keydown', e => {
+      if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg() }
+    })
+
+    function quickAsk(text) {
+      input.value = text
+      sendMsg()
     }
-    welcome()
-
-    input.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg() } })
 
     async function sendMsg() {
       const text = input.value.trim()
@@ -162,16 +153,16 @@
 
       append('user', text)
       input.value = ''
+      input.style.height = 'auto'
       busy = true
       btn.disabled = true
       input.disabled = true
-      setStatus('Mengetik...', false)
 
-      const typing = document.createElement('div')
-      typing.className = 'typing-wrap'
-      typing.innerHTML = '<div class="typing-bubble"><span></span><span></span><span></span></div>'
-      chat.appendChild(typing)
-      chat.scrollTop = chat.scrollHeight
+      const typingEl = document.createElement('div')
+      typingEl.className = 'msg assistant'
+      typingEl.innerHTML = '<div class="msg-avatar">✦</div><div class="msg-body"><div class="typing-indicator"><span></span><span></span><span></span></div></div>'
+      chatInner.appendChild(typingEl)
+      scrollDown()
 
       try {
         const r = await fetch('/api/chat', {
@@ -180,21 +171,18 @@
           body: JSON.stringify({message:text, history:h})
         })
         const d = await r.json()
-        typing.remove()
+        typingEl.remove()
 
         if(r.ok) {
-          append('bot', d.reply)
+          append('assistant', d.reply)
           h.push({role:'user', content:text})
           h.push({role:'assistant', content:d.reply})
-          setStatus('Online', true)
         } else {
-          toast(d.error || 'Gagal')
-          setStatus('Error', false)
+          show(d.error || 'Gagal')
         }
       } catch(e) {
-        typing.remove()
-        toast('Koneksi terputus')
-        setStatus('Offline', false)
+        typingEl.remove()
+        show('Koneksi terputus')
       }
 
       busy = false
@@ -206,26 +194,46 @@
     function append(role, text) {
       const u = role === 'user'
       const t = new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})
+
+      // Remove empty state if present
+      const empty = chatInner.querySelector('.empty-state')
+      if(empty) empty.remove()
+
       const div = document.createElement('div')
-      div.className = `msg ${u ? 'msg-right' : 'msg-left'}`
-      div.innerHTML = `<div class="msg-body"><div class="msg-bubble">${esc(text)}</div><div class="msg-time">${t}${u ? '<span class="check">✓</span>' : ''}</div></div>`
-      chat.appendChild(div)
-      n++
-      chat.scrollTop = chat.scrollHeight
+      div.className = `msg ${u ? 'user' : 'assistant'}`
+      div.innerHTML = `
+        <div class="msg-avatar">${u ? 'U' : '✦'}</div>
+        <div class="msg-body">
+          <div class="content">${esc(text)}</div>
+          <div class="msg-footer"><span class="time">${t}</span></div>
+        </div>`
+      chatInner.appendChild(div)
+      scrollDown()
     }
 
     function resetChat() {
-      if(n <= 1) return
-      h = []; n = 0
-      chat.innerHTML = ''
-      welcome()
-      setStatus('Online', true)
-      show('Percakapan dihapus')
+      const msgs = chatInner.querySelectorAll('.msg')
+      if(!msgs.length) return
+      h = []
+      chatInner.innerHTML = ''
+      chatInner.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">💬</div>
+          <h2>Apa yang bisa saya bantu?</h2>
+          <p>Saya menggunakan Groq Llama 3.3 70B — cepat dan gratis.</p>
+          <div class="suggestions">
+            <button onclick="quickAsk('Jelaskan AI dalam bahasa sederhana')">Jelaskan AI</button>
+            <button onclick="quickAsk('Buatkan puisi tentang coding')">Puisi coding</button>
+            <button onclick="quickAsk('Apa itu Groq?')">Apa itu Groq?</button>
+          </div>
+        </div>`
+      scrollDown()
+      show('Percakapan baru')
     }
 
-    function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML }
-    function setStatus(t, ok) { st.textContent = t; dot.className = 'online-dot' + (ok === false ? ' off' : '') }
+    function scrollDown() { chatBox.scrollTop = chatBox.scrollHeight }
 
+    function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML }
     function show(msg) {
       toast.textContent = msg
       clearTimeout(tt)

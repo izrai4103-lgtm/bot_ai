@@ -64,7 +64,7 @@ export async function sandboxChat({ prompt, history, model, temperature, maxToke
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const completion = await client.chat.completions.create({
-        model: model || FALLBACK_MODELS[_currentModelIdx % FALLBACK_MODELS.length],
+        model: FALLBACK_MODELS[_currentModelIdx % FALLBACK_MODELS.length],
         messages,
         temperature: temperature || 0.7,
         max_tokens: maxTokens || 4096,
@@ -142,7 +142,7 @@ export async function* sandboxChatStream({ prompt, history, model, temperature, 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const stream = await client.chat.completions.create({
-        model: model || FALLBACK_MODELS[_currentModelIdx % FALLBACK_MODELS.length],
+        model: FALLBACK_MODELS[_currentModelIdx % FALLBACK_MODELS.length],
         messages,
         temperature: temperature || 0.7,
         max_tokens: maxTokens || 4096,

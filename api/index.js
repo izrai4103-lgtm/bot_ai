@@ -233,7 +233,7 @@ Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab 
 Nama: ${plain.knowledge.bot_name || 'Chat AI'}
 Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
 
-${plain.learnings.length > 0 ? '# Data Pembelajaran\n' + plain.learnings.slice(-20).map(l => \`- User: \${l.user_message}\n  AI: \${l.ai_response}\`).join('\n') : ''}
+${plain.learnings.length > 0 ? '# Data Pembelajaran\n' + plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n') : ''}
 
 ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}\`;
 
@@ -329,7 +329,7 @@ Nama: ${plain.knowledge.bot_name || 'Chat AI'}
 Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
 
 # Data Pembelajaran
-${plain.learnings.slice(-20).map(l => \`- User: \${l.user_message}\n  AI: \${l.ai_response}\`).join('\n')}
+${plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n')}
 
 ${system ? '\n### Instruksi Tambahan\n' + system : ''}\`;
 

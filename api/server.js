@@ -95,6 +95,7 @@ export default async function handler(req, res) {
     if (path === '/api/v1/' || path === '/api/' || path === '/api') {
       return res.json({
         status: true,
+        _debug_plain_path: PLAIN_TMP,
         name: 'Bot AI',
         version: '1.0.0',
         default_locale: 'id-ID',
@@ -395,6 +396,17 @@ ${system ? '\nInstruksi tambahan: ' + system : ''}`;
         res.setHeader('Cache-Control', 'public, max-age=31536000');
         return res.end(content);
       }
+    }
+
+    // ============ DEBUG ============
+    if (path === '/api/debug') {
+      return res.json({
+        plain_path: PLAIN_TMP,
+        root: ROOT,
+        exists_tmp: existsSync(PLAIN_TMP),
+        node_version: process.version,
+        deploy_time: new Date().toISOString()
+      });
     }
 
     // ============ FAVICON ============

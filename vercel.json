@@ -1,8 +1,19 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/openai/(.*)", "destination": "/api/index" },
-    { "source": "/(.*)", "destination": "/public/$1" }
+  "framework": null,
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "api/index.js" },
+    { "src": "/openai/(.*)", "dest": "api/index.js" },
+    { "src": "/(.*)", "dest": "public/$1" }
   ]
 }

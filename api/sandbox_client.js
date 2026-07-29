@@ -7,6 +7,11 @@
 const SANDBOX_URL = process.env.SANDBOX_URL || null;
 const FALLBACK_ENABLED = process.env.SANDBOX_FALLBACK !== 'false';
 
+// Ollama local model support
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
+const USE_LOCAL = process.env.USE_LOCAL_MODEL === 'true';
+
 const FALLBACK_MODELS = [
   'qwen/qwen3.6-27b',
   'llama-3.1-8b-instant',
@@ -17,6 +22,70 @@ const FALLBACK_MODELS = [
 let groqInstance = null;
 let _currentModelIdx = 0;
 
+// ============ OLLAMA LOCAL ============
+async function ollamaChat({ prompt, history, system, temperature, maxTokens }) {
+  const messages = [];
+  if (system) messages.push({ role: 'system', content: system });
+  if (history) messages.push(...history);
+  messages.push({ role: 'user', content: prompt });
+  
+  const resp = await fetch(OLLAMA_URL + '/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: OLLAMA_MODEL,
+      messages,
+      stream: false,
+      options: { temperature: temperature || 0.7, num_predict: maxTokens || 4096 }
+    }),
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!resp.ok) throw new Error('Ollama HTTP ' + resp.status);
+  const data = await resp.json();
+  return data.message?.content || '';
+}
+
+async function* ollamaChatStream({ prompt, history, system, temperature, maxTokens }) {
+  const messages = [];
+  if (system) messages.push({ role: 'system', content: system });
+  if (history) messages.push(...history);
+  messages.push({ role: 'user', content: prompt });
+  
+  const resp = await fetch(OLLAMA_URL + '/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: OLLAMA_MODEL,
+      messages,
+      stream: true,
+      options: { temperature: temperature || 0.7, num_predict: maxTokens || 4096 }
+    }),
+    signal: AbortSignal.timeout(120000),
+  });
+  if (!resp.ok) throw new Error('Ollama HTTP ' + resp.status);
+  
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const data = JSON.parse(line);
+        if (data.message?.content) yield { content: data.message.content, done: false };
+        if (data.done) { yield { content: '', done: true }; return; }
+      } catch {}
+    }
+  }
+  yield { content: '', done: true };
+}
+
+// ============ GROQ CLOUD ============
 async function getGroq() {
   if (groqInstance) return groqInstance;
   const { default: Groq } = await import('groq-sdk');
@@ -31,6 +100,11 @@ const stats = { total_requests: 0, total_tokens: 0, errors: 0, last_request: nul
  * Chat non-streaming via Sandbox (Groq SDK langsung).
  */
 export async function sandboxChat({ prompt, history, model, temperature, maxTokens, system }) {
+  // === USE LOCAL OLLAMA ===
+  if (USE_LOCAL) {
+    return await ollamaChat({ prompt, history, system, temperature, maxTokens });
+  }
+  
   // Try external Python sandbox if URL configured
   if (SANDBOX_URL) {
     try {
@@ -92,6 +166,12 @@ export async function sandboxChat({ prompt, history, model, temperature, maxToke
  * Chat streaming via Sandbox (Groq SDK langsung).
  */
 export async function* sandboxChatStream({ prompt, history, model, temperature, maxTokens, system }) {
+  // === USE LOCAL OLLAMA ===
+  if (USE_LOCAL) {
+    yield* await ollamaChatStream({ prompt, history, system, temperature, maxTokens });
+    return;
+  }
+  
   // Try external Python sandbox if URL configured
   if (SANDBOX_URL) {
     try {

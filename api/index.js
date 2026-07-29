@@ -262,10 +262,40 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
           });
 
           let fullResponse = '';
+          let inThinkTag = false;
+          let thinkBuf = '';
           for await (const chunk of streamResp) {
-            const content = chunk.choices[0]?.delta?.content || '';
-            if (content) fullResponse += content;
-            res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: stripThinkTags(content) }, index: 0 }] })}\n\n`);
+            const raw = chunk.choices[0]?.delta?.content || '';
+            if (raw) fullResponse += raw;
+            // Filter out <think>...</think> reasoning tags (character-by-character state machine)
+            let filtered = '';
+            if (inThinkTag) {
+              thinkBuf += raw;
+              const endIdx = thinkBuf.indexOf('</think>');
+              if (endIdx >= 0) {
+                inThinkTag = false;
+                filtered = thinkBuf.substring(endIdx + 8);
+                thinkBuf = '';
+              }
+            } else {
+              const startIdx = raw.indexOf('<think');
+              if (startIdx >= 0) {
+                inThinkTag = true;
+                filtered = raw.substring(0, startIdx);
+                thinkBuf = raw.substring(startIdx);
+                const endIdx2 = thinkBuf.indexOf('</think>');
+                if (endIdx2 >= 0) {
+                  inThinkTag = false;
+                  filtered += thinkBuf.substring(endIdx2 + 8);
+                  thinkBuf = '';
+                }
+              } else {
+                filtered = raw;
+              }
+            }
+            if (filtered) {
+              res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: filtered }, index: 0 }] })}\n\n`);
+            }
           }
 
           // Save to plain.json
@@ -296,6 +326,9 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
             addLearning(lastMsg.content || '', responseText);
           }
 
+          if (completion.choices[0]?.message?.content) {
+            completion.choices[0].message.content = stripThinkTags(completion.choices[0].message.content);
+          }
           return res.json(completion);
         } catch (err) {
           return res.status(500).json({ error: err.message });
@@ -355,10 +388,39 @@ ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
         });
 
         let fullResponse = '';
+        let inThinkTag = false;
+        let thinkBuf = '';
         for await (const chunk of streamResp) {
-          const content = chunk.choices[0]?.delta?.content || '';
-          if (content) fullResponse += content;
-          res.write(`data: ${JSON.stringify({ content: stripThinkTags(content) })}\n\n`);
+          const raw = chunk.choices[0]?.delta?.content || '';
+          if (raw) fullResponse += raw;
+          let filtered = '';
+          if (inThinkTag) {
+            thinkBuf += raw;
+            const endIdx = thinkBuf.indexOf('</think>');
+            if (endIdx >= 0) {
+              inThinkTag = false;
+              filtered = thinkBuf.substring(endIdx + 8);
+              thinkBuf = '';
+            }
+          } else {
+            const startIdx = raw.indexOf('<think');
+            if (startIdx >= 0) {
+              inThinkTag = true;
+              filtered = raw.substring(0, startIdx);
+              thinkBuf = raw.substring(startIdx);
+              const endIdx2 = thinkBuf.indexOf('</think>');
+              if (endIdx2 >= 0) {
+                inThinkTag = false;
+                filtered += thinkBuf.substring(endIdx2 + 8);
+                thinkBuf = '';
+              }
+            } else {
+              filtered = raw;
+            }
+          }
+          if (filtered) {
+            res.write(`data: ${JSON.stringify({ content: filtered })}\n\n`);
+          }
         }
 
         if (fullResponse) {

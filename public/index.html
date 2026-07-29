@@ -13,101 +13,86 @@
   <style>
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
     html,body{height:100%;overflow:hidden}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:#fff;color:#343541;-webkit-font-smoothing:antialiased}
-    ::-webkit-scrollbar{width:4px}
-    ::-webkit-scrollbar-track{transparent}
-    ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.08);border-radius:4px}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;color:#343541;-webkit-font-smoothing:antialiased}
 
     #app{width:100%;max-width:800px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;background:#fff}
-    @media(min-width:768px){#app{border-left:1px solid #e5e5e5;border-right:1px solid #e5e5e5;box-shadow:0 0 20px rgba(0,0,0,.04)}}
+    @media(min-width:768px){#app{border-left:1px solid #e5e5e5;border-right:1px solid #e5e5e5}}
 
-    /* HEADER */
-    .header{display:flex;align-items:center;gap:12px;padding:10px 16px;flex-shrink:0;padding-top:calc(10px+env(safe-area-inset-top,0px));border-bottom:1px solid #e5e5e5;background:#fff;position:relative}
-    .header-l{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
-    .header-avatar{width:32px;height:32px;border-radius:6px;background:#10a37f;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
-    .header-info{min-width:0}
-    .header-info .name{font-size:15px;font-weight:600;color:#1c1c1e;display:flex;align-items:center;gap:6px}
-    .header-info .badge{font-size:10px;font-weight:500;color:#8e8ea0;background:#f4f4f5;padding:1px 7px;border-radius:4px}
-    .header-info .sub{font-size:11px;color:#8e8ea0;display:flex;align-items:center;gap:4px;margin-top:1px}
-    .sub .dot{width:5px;height:5px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 2s infinite}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-
-    .header-r{display:flex;gap:4px}
-    .hbtn{width:32px;height:32px;border:none;border-radius:6px;background:transparent;color:#8e8ea0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:all .15s}
+    /* ── HEADER (ChatGPT style) ── */
+    .header{display:flex;align-items:center;justify-content:center;padding:12px 16px;flex-shrink:0;padding-top:calc(12px+env(safe-area-inset-top,0px));border-bottom:1px solid rgba(0,0,0,.08);background:#fff;position:relative}
+    .header h1{font-size:14px;font-weight:600;color:#343541;display:flex;align-items:center;gap:6px}
+    .header h1 span{font-weight:400;color:#8e8ea0;background:#f4f4f5;padding:2px 7px;border-radius:4px;font-size:10px;letter-spacing:.2px}
+    .header-right{position:absolute;right:14px;top:50%;transform:translateY(-50%);display:flex;gap:2px}
+    .hbtn{width:32px;height:32px;border:none;border-radius:6px;background:transparent;color:#8e8ea0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:background .15s}
     .hbtn:hover{background:#f4f4f5;color:#343541}
-    .hbtn:active{background:#e5e5e5}
 
-    /* CHAT */
-    .chat-box{flex:1;overflow-y:auto;overflow-anchor:none;background:#fff}
-    .chat-inner{padding:8px 0;overflow-anchor:none;max-width:700px;margin:0 auto;width:100%}
-    @media(min-width:768px){.chat-inner{padding:16px 0}}
+    /* ── MESSAGES (ChatGPT style) ── */
+    .chat-box{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fff}
+    .chat-inner{max-width:700px;margin:0 auto}
 
-    .msg{display:flex;gap:16px;padding:8px 24px;line-height:1.6;animation:fi .2s ease both}
-    @media(min-width:768px){.msg{padding:12px 32px;gap:20px}}
-    @keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+    .msg{display:flex;gap:16px;padding:14px 16px;line-height:1.6;animation:fi .2s ease both}
+    @media(min-width:640px){.msg{padding:16px 24px;gap:20px}}
+    @keyframes fi{from{opacity:0}to{opacity:1}}
 
     .msg.user{background:#fff}
     .msg.assistant{background:#f7f7f8}
-    .msg.system{background:#fff;border-left:3px solid #10a37f;padding:6px 24px}
-    .msg.system .content{color:#8e8ea0;font-size:13px;font-style:italic;padding:0!important}
-    .msg.system .msg-avatar{display:none}
 
-    .msg-avatar{width:30px;height:30px;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;margin-top:2px}
+    .msg-avatar{width:30px;height:30px;border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;margin-top:2px}
     .msg.user .msg-avatar{background:#5436da;color:#fff}
-    .msg.assistant .msg-avatar{background:#10a37f;color:#fff;font-size:15px}
+    .msg.assistant .msg-avatar{background:#10a37f;color:#fff;font-size:14px}
 
-    .msg-body{flex:1;min-width:0}
-    .msg-body .content{font-size:15px;color:#343541;line-height:1.65}
-    .msg-body .content p{margin-bottom:10px}
-    .msg-body .content p:last-child{margin-bottom:0}
-    .msg-body .content ul,.msg-body .content ol{padding-left:20px;margin-bottom:10px}
-    .msg-body .content li{margin-bottom:4px}
-    .msg-body .content code{background:#f4f4f5;padding:2px 6px;border-radius:4px;font-size:13px;font-family:'SF Mono','Fira Code',monospace;color:#343541}
-    .msg-body .content pre{margin:10px 0;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5;position:relative}
-    .msg-body .content pre code{background:#f8f8f9;padding:14px 16px;display:block;overflow-x:auto;font-size:13px;line-height:1.5;border-radius:8px}
-    .msg-body .content blockquote{border-left:3px solid #e5e5e5;padding:4px 12px;margin:10px 0;color:#8e8ea0}
-    .msg-body .content table{border-collapse:collapse;margin:10px 0;width:100%;font-size:14px}
-    .msg-body .content th,.msg-body .content td{border:1px solid #e5e5e5;padding:6px 12px;text-align:left}
-    .msg-body .content th{background:#f4f4f5;font-weight:600}
-    .msg-body .content a{color:#10a37f;text-decoration:none}
-    .msg-body .content a:hover{text-decoration:underline}
-    .msg-body .content h1,.msg-body .content h2,.msg-body .content h3,.msg-body .content h4{margin:14px 0 8px;font-weight:600;color:#1d1d1e}
-    .msg-body .content h1{font-size:20px}.msg-body .content h2{font-size:17px}.msg-body .content h3{font-size:15px}
-    .msg-body .content hr{margin:16px 0;border:none;border-top:1px solid #e5e5e5}
+    .msg-body{flex:1;min-width:0;font-size:14px;color:#343541;line-height:1.65}
+
+    /* markdown content */
+    .msg-body p{margin-bottom:8px}
+    .msg-body p:last-child{margin-bottom:0}
+    .msg-body ul,.msg-body ol{padding-left:20px;margin:6px 0}
+    .msg-body li{margin-bottom:3px}
+    .msg-body code{background:#f1f1f3;padding:2px 5px;border-radius:3px;font-size:13px;font-family:'SF Mono','Fira Code',monospace;color:#343541}
+    .msg-body pre{margin:8px 0;border-radius:6px;overflow:hidden;border:1px solid #e5e5e5}
+    .msg-body pre code{background:#f7f7f8;padding:12px 14px;display:block;overflow-x:auto;font-size:13px;line-height:1.5;border-radius:6px}
+    .msg-body blockquote{border-left:3px solid #e5e5e5;padding:3px 10px;margin:8px 0;color:#8e8ea0}
+    .msg-body table{border-collapse:collapse;margin:8px 0;width:100%;font-size:13px}
+    .msg-body th,.msg-body td{border:1px solid #e5e5e5;padding:5px 10px;text-align:left}
+    .msg-body th{background:#f4f4f5;font-weight:600}
+    .msg-body a{color:#10a37f;text-decoration:none}
+    .msg-body a:hover{text-decoration:underline}
+    .msg-body h1,.msg-body h2,.msg-body h3,.msg-body h4{margin:12px 0 6px;font-weight:600;color:#1d1d1e}
+    .msg-body h1{font-size:18px}.msg-body h2{font-size:16px}.msg-body h3{font-size:14px}
+    .msg-body hr{margin:12px 0;border:none;border-top:1px solid #e5e5e5}
 
     .stream-cursor::after{content:'▊';animation:blink .8s step-end infinite;color:#343541}
     @keyframes blink{50%{opacity:0}}
 
-    .msg-footer{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11px;color:#c5c5d2}
+    .msg-footer{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:#c5c5d2}
 
-    /* EMPTY */
-    .empty{padding:80px 24px 40px;text-align:center;display:flex;flex-direction:column;align-items:center}
-    .empty .logo{width:56px;height:56px;border-radius:16px;background:#f4f4f5;display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:20px}
-    .empty h2{font-size:20px;font-weight:600;color:#343541;margin-bottom:6px}
-    .empty p{font-size:14px;color:#8e8ea0;max-width:340px;line-height:1.5}
-    .empty .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:24px;max-width:440px}
-    .empty .chips button{background:#f4f4f5;border:1px solid #e5e5e5;border-radius:100px;padding:8px 18px;font-size:13px;color:#343541;cursor:pointer;transition:all .15s;white-space:nowrap}
+    /* ── EMPTY STATE ── */
+    .empty{padding:100px 24px 60px;text-align:center;display:flex;flex-direction:column;align-items:center}
+    .empty h2{font-size:18px;font-weight:600;color:#343541;margin-bottom:4px}
+    .empty p{font-size:13px;color:#8e8ea0;margin-bottom:20px}
+    .empty .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:400px}
+    .empty .chips button{background:#f4f4f5;border:1px solid #e5e5e5;border-radius:100px;padding:6px 14px;font-size:12px;color:#343541;cursor:pointer;transition:all .15s;white-space:nowrap}
     .empty .chips button:hover{background:#e5e5e5;border-color:#d1d1d6}
 
-    /* INPUT */
+    /* ── INPUT (ChatGPT style) ── */
     .input-wrap{flex-shrink:0;padding:0 16px 16px;padding-bottom:calc(16px+env(safe-area-inset-bottom,0px));background:#fff}
-    .input-inner{max-width:700px;margin:0 auto;position:relative;border:1px solid #c5c5d2;border-radius:12px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.03);transition:border-color .2s,box-shadow .2s}
-    .input-inner:focus-within{border-color:#8e8ea0;box-shadow:0 2px 12px rgba(0,0,0,.05)}
-    .input-inner textarea{width:100%;padding:10px 48px 10px 14px;border:none;border-radius:12px;background:transparent;color:#343541;font-size:15px;font-family:inherit;line-height:1.5;outline:none;resize:none;-webkit-appearance:none;min-height:40px;max-height:150px}
+    .input-inner{max-width:700px;margin:0 auto;padding:0 44px 0 14px;border:1px solid #c5c5d2;border-radius:10px;background:#fff;position:relative;box-shadow:0 2px 6px rgba(0,0,0,.02);transition:border-color .2s,box-shadow .2s}
+    .input-inner:focus-within{border-color:#8e8ea0;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+    .input-inner textarea{width:100%;padding:8px 0;border:none;background:transparent;color:#343541;font-size:14px;font-family:inherit;line-height:1.5;outline:none;resize:none;-webkit-appearance:none;min-height:36px;max-height:140px}
     .input-inner textarea::placeholder{color:#8e8ea0}
-    .input-inner textarea:disabled{opacity:.4;cursor:not-allowed}
+    .input-inner textarea:disabled{opacity:.4}
 
-    .input-actions{position:absolute;bottom:6px;right:6px;display:flex;gap:2px}
-    .send-btn,.stop-btn{width:34px;height:34px;border:none;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+    .input-actions{position:absolute;bottom:5px;right:5px;display:flex;gap:2px}
+    .send-btn,.stop-btn{width:32px;height:32px;border:none;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
     .send-btn{background:#343541;color:#fff}
     .send-btn:active{transform:scale(.9)}
     .send-btn:disabled{background:#c5c5d2;cursor:default;transform:none}
     .stop-btn{background:#ef4444;color:#fff;display:none}
     .stop-btn:active{background:#dc2626}
-    .send-btn svg,.stop-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .send-btn svg,.stop-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
-    /* TOAST */
-    .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);background:rgba(0,0,0,.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;opacity:0;transition:all .2s ease;pointer-events:none;z-index:100;text-align:center;max-width:280px}
+    /* ── TOAST ── */
+    .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);background:rgba(0,0,0,.8);backdrop-filter:blur(12px);color:#fff;padding:10px 22px;border-radius:10px;font-size:13px;opacity:0;transition:all .2s ease;pointer-events:none;z-index:100;text-align:center;max-width:260px}
     .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
   </style>
 </head>
@@ -115,14 +100,8 @@
   <div id="app">
     <!-- HEADER -->
     <div class="header">
-      <div class="header-l">
-        <div class="header-avatar">✦</div>
-        <div class="header-info">
-          <div class="name">Chat AI <span class="badge">GROQ</span></div>
-          <div class="sub"><span class="dot"></span> Online · Llama 3.3 70B</div>
-        </div>
-      </div>
-      <div class="header-r">
+      <h1>Chat AI <span>GROQ</span></h1>
+      <div class="header-right">
         <button class="hbtn" onclick="resetChat()" title="Percakapan baru">✕</button>
       </div>
     </div>
@@ -131,14 +110,12 @@
     <div class="chat-box" id="chatBox">
       <div class="chat-inner" id="chatInner">
         <div class="empty">
-          <div class="logo">✦</div>
           <h2>Ada yang bisa saya bantu?</h2>
-          <p>Groq Llama 3.3 70B — streaming real-time, bahasa Indonesia</p>
+          <p>Groq Llama 3.3 70B — streaming, bahasa Indonesia</p>
           <div class="chips">
-            <button onclick="quick('Jelaskan artificial intelligence')">🧠 AI</button>
+            <button onclick="quick('Jelaskan machine learning')">🧠 ML</button>
             <button onclick="quick('Buat kode Python web scraper')">🐍 Python</button>
-            <button onclick="quick('Apa itu REST API?')">🌐 REST API</button>
-            <button onclick="quick('Tips belajar coding')">💡 Tips</button>
+            <button onclick="quick('Apa itu API?')">🌐 API</button>
           </div>
         </div>
       </div>
@@ -147,7 +124,7 @@
     <!-- INPUT -->
     <div class="input-wrap">
       <div class="input-inner">
-        <textarea id="inputMsg" rows="1" placeholder="Tanya apa saja..." autofocus></textarea>
+        <textarea id="inputMsg" rows="1" placeholder="Kirim pesan..." autofocus></textarea>
         <div class="input-actions">
           <button class="stop-btn" id="stopBtn" onclick="stopStream()">
             <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
@@ -169,15 +146,12 @@
 
     let history = [], busy = false, tt = null, ac = null
 
-    if(typeof marked !== 'undefined') {
-      marked.setOptions({ breaks: true, gfm: true })
-      marked.use({ async: false })
-    }
+    if(typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true })
 
     // Auto-resize
     input.addEventListener('input', () => {
       input.style.height = 'auto'
-      input.style.height = Math.min(input.scrollHeight, 150) + 'px'
+      input.style.height = Math.min(input.scrollHeight, 140) + 'px'
     })
     input.addEventListener('keydown', e => {
       if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg() }
@@ -198,9 +172,9 @@
 
       const div = document.createElement('div')
       div.className = 'msg assistant'
-      div.innerHTML = '<div class="msg-avatar">✦</div><div class="msg-body"><div class="content stream-cursor"></div></div>'
+      div.innerHTML = '<div class="msg-avatar">✦</div><div class="msg-body"><div class="stream-cursor"></div></div>'
       inner.appendChild(div)
-      const ce = div.querySelector('.content')
+      const ce = div.querySelector('.msg-body')
 
       try {
         ac = new AbortController()
@@ -212,8 +186,8 @@
         })
 
         if(!res.ok) {
-          const d = await res.json().catch(() => ({}))
-          throw new Error(d.error || `HTTP ${res.status}`)
+          const d = await res.json().catch(()=>({}))
+          throw new Error(d.error || 'Gagal')
         }
 
         const reader = res.body.getReader()
@@ -239,12 +213,10 @@
               if(data.done) { reply = data.fullContent || reply; continue }
               if(data.content) {
                 reply += data.content
-                
-                var _sp=chatBox.scrollTop,_sh=chatBox.scrollHeight;
+                const sp=chatBox.scrollTop,sh=chatBox.scrollHeight
                 try { ce.innerHTML = marked.parse(reply) + '<span class="stream-cursor"></span>' }
                 catch(e) { ce.innerHTML = esc(reply) + '<span class="stream-cursor"></span>' }
-                if(chatBox.scrollHeight!==_sh) chatBox.scrollTop=_sp;
-
+                if(chatBox.scrollHeight!==sh) chatBox.scrollTop=sp
               }
             } catch(e) {
               if(e.message !== 'Unexpected end of JSON input') console.error(e)
@@ -252,33 +224,31 @@
           }
         }
 
-        ce.classList.remove('stream-cursor')
-        var _sp2=chatBox.scrollTop,_sh2=chatBox.scrollHeight;
+        const sp=chatBox.scrollTop,sh=chatBox.scrollHeight
+        ce.innerHTML = ce.innerHTML.replace('<span class="stream-cursor"></span>','')
         ce.innerHTML = marked.parse(reply)
-        if(chatBox.scrollHeight!==_sh2) chatBox.scrollTop=_sp2;
-        if(typeof hljs !== 'undefined') document.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b))
+        if(chatBox.scrollHeight!==sh) chatBox.scrollTop=sp
+        if(typeof hljs !== 'undefined') document.querySelectorAll('pre code').forEach(b=>hljs.highlightElement(b))
 
         const t = new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})
         const ftr = document.createElement('div')
         ftr.className = 'msg-footer'
-        ftr.innerHTML = `<span>${t}</span>`
-        div.querySelector('.msg-body').appendChild(ftr)
+        ftr.innerHTML = t
+        ce.appendChild(ftr)
 
         history.push({role:'user', content:text})
         history.push({role:'assistant', content:reply})
 
       } catch(e) {
-        if(e.name === 'AbortError') return
-        const errMsg = e.message || 'Koneksi terputus'
-        if(ce) ce.textContent = '⚠️ ' + errMsg
-        show(errMsg)
+        if(e.name==='AbortError') return
+        if(ce) ce.textContent = '⚠️ ' + (e.message || 'Gagal')
       }
 
       busy = false; btn.style.display = 'flex'; stopBtn.style.display = 'none'
       input.disabled = false; input.focus()
     }
 
-    function stopStream() { if(ac) { ac.abort(); ac = null; show('Dibentikan') } }
+    function stopStream() { if(ac) { ac.abort(); ac=null; show('Dibentikan') } }
 
     function append(role, text) {
       const u = role === 'user'
@@ -288,23 +258,21 @@
 
       const div = document.createElement('div')
       div.className = `msg ${u ? 'user' : 'assistant'}`
-      div.innerHTML = `<div class="msg-avatar">${u ? 'U' : '✦'}</div><div class="msg-body"><div class="content">${esc(text)}</div><div class="msg-footer"><span>${t}</span></div></div>`
+      div.innerHTML = `<div class="msg-avatar">${u ? 'U' : '✦'}</div><div class="msg-body">${esc(text)}<div class="msg-footer">${t}</div></div>`
       inner.appendChild(div)
-
     }
 
     function resetChat() {
       if(!inner.querySelectorAll('.msg').length) return
       history = []; inner.innerHTML = ''
-      inner.innerHTML = `<div class="empty"><div class="logo">✦</div><h2>Ada yang bisa saya bantu?</h2><p>Groq Llama 3.3 70B — streaming real-time, bahasa Indonesia</p><div class="chips"><button onclick="quick('Jelaskan artificial intelligence')">🧠 AI</button><button onclick="quick('Buat kode Python web scraper')">🐍 Python</button><button onclick="quick('Apa itu REST API?')">🌐 REST API</button><button onclick="quick('Tips belajar coding')">💡 Tips</button></div></div>`
+      inner.innerHTML = '<div class="empty"><h2>Ada yang bisa saya bantu?</h2><p>Groq Llama 3.3 70B — streaming, bahasa Indonesia</p><div class="chips"><button onclick="quick(\'Jelaskan machine learning\')">🧠 ML</button><button onclick="quick(\'Buat kode Python web scraper\')">🐍 Python</button><button onclick="quick(\'Apa itu API?\')">🌐 API</button></div></div>'
       show('Percakapan baru')
     }
 
-    
     function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML }
     function show(m) {
       toast.textContent = m; clearTimeout(tt); void toast.offsetWidth
-      toast.classList.add('show'); tt = setTimeout(() => toast.classList.remove('show'), 1800)
+      toast.classList.add('show'); tt=setTimeout(()=>toast.classList.remove('show'),1800)
     }
   </script>
 </body>

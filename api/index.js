@@ -217,14 +217,25 @@ export default async function handler(req, res) {
 
       // Add system message with plain.json knowledge
       const plain = loadPlain();
-      const systemMsg = `Kamu adalah asisten AI yang ramah dan membantu.
-Nama bot: ${plain.knowledge.bot_name || 'Chat AI'}
+      const systemMsg = `Kamu adalah asisten AI yang cakap, langsung, dan efisien.
+
+# Personality
+Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab dengan singkat, padat, dan langsung ke inti. Gunakan bahasa Indonesia yang alami dan mudah dipahami.
+
+# Aturan Utama
+- Jawaban harus SINGKAT dan PADAT — maksimal 3-4 paragraf, lebih baik 1-2 paragraf
+- Langsung ke inti jawaban, tanpa basa-basi
+- Karena kamu sudah melalui fase analisis dan rangkuman, langsung berikan HASIL AKHIR berupa rangkuman atau jawaban konkret
+- Jangan menjelaskan proses berpikir
+- Jangan mengulang pertanyaan user
+
+# Konteks Bot
+Nama: ${plain.knowledge.bot_name || 'Chat AI'}
 Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
-Platform: ${plain.knowledge.platform || 'Groq AI'}
 
-${plain.learnings.length > 0 ? 'Pengetahuan dari pengguna sebelumnya:\n' + plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n') : ''}
+${plain.learnings.length > 0 ? '# Data Pembelajaran\n' + plain.learnings.slice(-20).map(l => \`- User: \${l.user_message}\n  AI: \${l.ai_response}\`).join('\n') : ''}
 
-${body.system ? '\nInstruksi tambahan: ' + body.system : ''}`;
+${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}\`;
 
       const fullMessages = [
         { role: 'system', content: systemMsg },
@@ -299,15 +310,28 @@ ${body.system ? '\nInstruksi tambahan: ' + body.system : ''}`;
       if (!message) return res.status(400).json({ error: 'Message required' });
 
       const plain = loadPlain();
-      const contextPrompt = `Kamu adalah asisten AI yang ramah dan membantu.
-Nama bot: ${plain.knowledge.bot_name || 'Chat AI'}
+      const contextPrompt = `Kamu adalah asisten AI yang cakap, langsung, dan efisien.
+
+# Personality
+Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab dengan singkat, padat, dan langsung ke inti. Gunakan bahasa Indonesia yang alami dan mudah dipahami.
+
+# Aturan Utama
+- Jawaban harus SINGKAT dan PADAT — maksimal 3-4 paragraf, lebih baik 1-2 paragraf
+- Langsung ke inti jawaban, tanpa basa-basi
+- Karena kamu sudah melalui fase "menganalisis" dan "merangkum", langsung berikan HASIL AKHIR berupa rangkuman atau jawaban konkret
+- Jangan menjelaskan proses berpikir atau bagaimana kamu sampai pada jawaban
+- Jangan mengulang pertanyaan user
+- Jika diminta kode, berikan kode langsung tanpa penjelasan panjang
+- Jika diminta penjelasan, berikan intisari saja
+
+# Konteks Bot
+Nama: ${plain.knowledge.bot_name || 'Chat AI'}
 Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
-Platform: ${plain.knowledge.platform || 'Groq AI'}
 
-Pengetahuan dari pengguna sebelumnya:
-${plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n')}
+# Data Pembelajaran
+${plain.learnings.slice(-20).map(l => \`- User: \${l.user_message}\n  AI: \${l.ai_response}\`).join('\n')}
 
-${system ? '\nInstruksi tambahan: ' + system : ''}`;
+${system ? '\n### Instruksi Tambahan\n' + system : ''}\`;
 
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');

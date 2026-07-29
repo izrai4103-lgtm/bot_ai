@@ -1,0 +1,22 @@
+OFFICIAL SOFTWARE LICENSE
+ELENA v1.0
+
+Copyright (c) 2026 Mohamad Ali (~Andmute). All Rights Reserved.
+
+Project: ELENA v1.0
+Developer: Mohamad Ali
+Official Account: ~Andmute
+
+License Terms:
+- This software, including its source code, design, user interface, graphics, documentation, and all related assets, is the intellectual property of Mohamad Ali (~Andmute).
+- Permission is granted to use this software for personal and lawful purposes only.
+- Without prior written permission from the copyright holder, the following actions are prohibited:
+  * Republishing or redistributing this project
+  * Selling or commercializing any part of this project
+  * Claiming ownership of this project
+  * Removing or modifying copyright notices
+  * Copying substantial portions of the source code for another project
+- Modification for personal learning purposes is allowed only if it does not violate applicable laws or infringe the rights of the copyright owner.
+
+Disclaimer:
+This software is provided "AS IS", without any express or implied warranty. The author shall not be held liable for any damages or losses arising from the use or inability to use this software.

@@ -13,17 +13,113 @@ const PLAIN_TMP = '/tmp/bot_ai_plain.json';
 // ============ REGULATIONS ============
 let REGULATIONS = '';
 try {
-  const regPath = join(ROOT, 'regulation.md');
-  if (existsSync(regPath)) {
-    REGULATIONS = readFileSync(regPath, 'utf-8');
+  const regPaths = [join(ROOT, 'regulation.md'), join(__dirname, 'regulation.md')];
+  for (const p of regPaths) {
+    if (existsSync(p)) {
+      REGULATIONS = readFileSync(p, 'utf-8');
+      break;
+    }
   }
 } catch {}
+
+// ============ DATA CONTENT ============
+let DATA_CONTENT = '';
+try {
+  const dataPaths = [join(ROOT, 'data.content'), join(__dirname, 'data.content')];
+  for (const p of dataPaths) {
+    if (existsSync(p)) {
+      DATA_CONTENT = readFileSync(p, 'utf-8');
+      break;
+    }
+  }
+} catch (e) {
+  console.error('Load data.content error:', e.message);
+}
+
+// ============ LICENSE PDF ============
+let LICENSE_TEXT = '';
+try {
+  // Try multiple paths for Vercel compatibility
+  const paths = [
+    join(ROOT, 'extracted_license.txt'),
+    join(__dirname, 'extracted_license.txt'),
+  ];
+  for (const p of paths) {
+    if (existsSync(p)) {
+      LICENSE_TEXT = readFileSync(p, 'utf-8');
+      break;
+    }
+  }
+  if (!LICENSE_TEXT) {
+    // Try the original PDF path
+    for (const p of [join(ROOT, 'license.pdf'), join(__dirname, 'license.pdf')]) {
+      if (existsSync(p)) {
+        LICENSE_TEXT = 'License file available at license.pdf';
+        break;
+      }
+    }
+  }
+} catch (e) {
+  console.error('Load license error:', e.message);
+}
+
+// ============ OPENAI DOCS ============
+let OPENAI_DOCS_CACHE = {};
+const OPENAI_DOCS_URLS = {
+  latestModel: 'https://developers.openai.com/api/docs/guides/latest-model.md',
+  codexManual: 'https://developers.openai.com/codex/codex-manual.md',
+  promptingGuide: 'https://developers.openai.com/api/docs/guides/prompt-guidance.md',
+  responsesApi: 'https://developers.openai.com/api/docs/guides/responses-api.md'
+};
+
+async function refreshOpenAIDocs() {
+  const now = Date.now();
+  // Refresh cache if older than 1 hour
+  if (OPENAI_DOCS_CACHE._timestamp && (now - OPENAI_DOCS_CACHE._timestamp) < 3600000) return;
+  
+  for (const [key, url] of Object.entries(OPENAI_DOCS_URLS)) {
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (resp.ok) {
+        const text = await resp.text();
+        // Limit to reasonable size
+        OPENAI_DOCS_CACHE[key] = text.substring(0, 8000);
+      }
+    } catch (e) {
+      console.error('OpenAI docs fetch error for', key, e.message);
+    }
+  }
+  OPENAI_DOCS_CACHE._timestamp = Date.now();
+}
+
+function getOpenAIDocsContext(query) {
+  const cache = OPENAI_DOCS_CACHE;
+  if (!cache.latestModel && !cache.codexManual) return '';
+  
+  let context = '# OpenAI Documentation (sumber resmi)\n';
+  if (cache.latestModel) {
+    context += '## Model Terbaru\n' + cache.latestModel.substring(0, 2000) + '\n\n';
+  }
+  if (cache.responsesApi) {
+    context += '## Responses API\n' + cache.responsesApi.substring(0, 2000) + '\n\n';
+  }
+  if (cache.codexManual) {
+    context += '## Codex Manual\n' + cache.codexManual.substring(0, 2000) + '\n\n';
+  }
+  if (cache.promptingGuide) {
+    context += '## Prompting Guide\n' + cache.promptingGuide.substring(0, 2000) + '\n\n';
+  }
+  return context + '\nGunakan dokumentasi resmi di atas untuk memastikan jawaban akurat dan tidak kadaluarsa.\n';
+}
+
+// ============ BOT NAME ============
+const BOT_NAME = 'ELENA';
 
 function defaultPlain() {
   return {
     version: 1,
     learnings: [],
-    knowledge: { bot_name: 'Chat AI', language: 'Bahasa Indonesia', platform: 'Groq AI' },
+    knowledge: { bot_name: 'ELENA', language: 'Bahasa Indonesia', platform: 'Groq AI' },
     preferences: {},
     stats: { total_conversations: 0, total_learnings: 0, last_updated: null }
   };
@@ -81,9 +177,98 @@ function normalizeMessages(messages) {
 // ============ WEB SEARCH & BROWSE ============
 const SEARCH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-// Search the web using DuckDuckGo Lite (simpler, more reliable HTML)
+// ============ GEMINI SEARCH ============
+async function geminiSearch(query) {
+  const geminiKey = process.env.GOOGLE_API_KEY;
+  if (!geminiKey) return null;
+  
+  try {
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(geminiKey);
+    const body = {
+      contents: [{
+        role: 'user',
+        parts: [{ text: 'Cari informasi terbaru tentang: ' + query + '. Berikan hasil pencarian dalam format terstruktur dengan URL, judul, dan deskripsi singkat untuk setiap hasil. Cantumkan minimal 3 dan maksimal 5 hasil.' }]
+      }],
+      tools: [{ googleSearch: {} }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 1024,
+        candidateCount: 1
+      }
+    };
+    
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000)
+    });
+    
+    const data = await resp.json();
+    if (data.candidates && data.candidates[0]?.content?.parts) {
+      const parts = data.candidates[0].content.parts;
+      const textPart = parts.find(p => p.text)?.text || '';
+      const groundingMetadata = data.candidates[0].groundingMetadata;
+      
+      // Extract search results from grounding chunks
+      const results = [];
+      if (groundingMetadata?.groundingChunks) {
+        for (const chunk of groundingMetadata.groundingChunks) {
+          if (chunk.web?.uri && chunk.web?.title) {
+            // Find corresponding snippet from the text or from the groundingSupports
+            let snippet = '';
+            if (groundingMetadata.groundingSupports) {
+              for (const support of groundingMetadata.groundingSupports) {
+                if (support.segment?.text) {
+                  snippet += support.segment.text + ' ';
+                }
+              }
+            }
+            results.push({
+              url: chunk.web.uri,
+              title: chunk.web.title,
+              snippet: snippet.trim() || chunk.web.title
+            });
+            if (results.length >= 5) break;
+          }
+        }
+      }
+      
+      // Fallback: parse text response for URLs if grounding chunks not available
+      if (results.length === 0 && textPart) {
+        const urlRegex = /https?:\/\/[^\s"')\]}]+/g;
+        const urls = textPart.match(urlRegex);
+        if (urls) {
+          for (const u of urls.slice(0, 5)) {
+            results.push({
+              url: u,
+              title: 'Hasil pencarian',
+              snippet: textPart.substring(0, 300)
+            });
+          }
+        }
+      }
+      
+      if (results.length > 0) return results;
+    }
+    return null;
+  } catch (err) {
+    console.error('Gemini search error:', err.message);
+    return null;
+  }
+}
+
+// Search the web using multiple methods
 async function webSearch(query) {
-  // Try Google Programmable Search API if configured
+  // 1. Try Gemini with Google Search Grounding (REAL data, anti-hallucination)
+  const geminiResults = await geminiSearch(query);
+  if (geminiResults && geminiResults.length > 0) {
+    console.log('Gemini search success for:', query);
+    return geminiResults;
+  }
+  console.log('Gemini search failed or empty for:', query);
+
+  // 2. Try Google Programmable Search API if configured
   const googleKey = process.env.GOOGLE_API_KEY;
   const googleCx = process.env.GOOGLE_CX;
   if (googleKey && googleCx) {
@@ -101,7 +286,7 @@ async function webSearch(query) {
     } catch (err) { console.error('Google API fail:', err.message); }
   }
 
-  // Fallback: Try DuckDuckGo API (may be blocked on some hosts)
+  // 3. Try DuckDuckGo API (may be blocked on some hosts)
   try {
     const ddgUrl = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json&no_html=1&skip_disambig=1';
     const resp = await fetch(ddgUrl, { 
@@ -398,13 +583,14 @@ export default async function handler(req, res) {
     
     // ============ WEB SEARCH CONFIG ============
     if (path === '/api/web/config') {
-      const hasGoogleKey = !!(process.env.GOOGLE_API_KEY && process.env.GOOGLE_CX);
+      const hasGeminiKey = !!process.env.GOOGLE_API_KEY;
+      const hasCx = !!process.env.GOOGLE_CX;
       return res.json({
-        available: hasGoogleKey,
-        google_configured: hasGoogleKey,
-        ddg_available: true,
-        message: hasGoogleKey ? 'Web search siap digunakan' : 'Google API Key belum dikonfigurasi. Web search mungkin terbatas.',
-        how_to_configure: 'Set GOOGLE_API_KEY dan GOOGLE_CX di environment variables Vercel. Dapatkan API key gratis di https://developers.google.com/custom-search/v1/introduction'
+        gemini_available: hasGeminiKey,
+        google_cx_configured: hasCx,
+        available: hasGeminiKey || hasCx,
+        message: 'Gemini dengan Google Search Grounding: ' + (hasGeminiKey ? 'API Key terpasang' : 'Belum ada API Key') + '.',
+        note: 'Gemini Search memberikan data REAL dengan Google Search grounding (anti-halusinasi). Jika kehabisan kuota, tunggu reset harian atau aktifkan billing di https://aistudio.google.com'
       });
     }
 
@@ -489,9 +675,11 @@ export default async function handler(req, res) {
           }
         }
       }
+      // Auto-refresh OpenAI docs if needed
+      try { refreshOpenAIDocs(); } catch(e) {}
 
-
-      const systemMsg = `${openaiWebContext}Kamu adalah asisten AI yang cakap, langsung, dan efisien.
+            const openaiDocsCtx = getOpenAIDocsContext("");
+      const systemMsg = `${openaiWebContext}${openaiDocsCtx}Kamu adalah asisten AI bernama ELENA yang cakap, langsung, dan efisien.
 
 # Personality
 Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab dengan singkat, padat, dan langsung ke inti. Gunakan bahasa Indonesia yang alami dan mudah dipahami.
@@ -502,6 +690,7 @@ Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab 
 - Karena kamu sudah melalui fase analisis dan rangkuman, langsung berikan HASIL AKHIR berupa rangkuman atau jawaban konkret
 - Jangan menjelaskan proses berpikir
 - Jangan mengulang pertanyaan user
+- Jika pertanyaan terkait API OpenAI, model AI, atau dokumentasi terbaru, gunakan dokumentasi OpenAI yang sudah disediakan di atas untuk memastikan jawaban akurat dan tidak kadaluarsa
 
 # Konteks Bot
 Nama: ${plain.knowledge.bot_name || 'Chat AI'}
@@ -510,6 +699,10 @@ Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
 ${plain.learnings.length > 0 ? '# Data Pembelajaran\n' + plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n') : ''}
 
 ${REGULATIONS ? '\n# Regulasi Keamanan\n' + REGULATIONS : ''}
+
+${DATA_CONTENT ? '\n# Format Pesan (Content Blocks)\n' + DATA_CONTENT : ''}
+
+${LICENSE_TEXT ? '\n# Lisensi\n' + LICENSE_TEXT : ''}
 
 ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
 
@@ -631,7 +824,8 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
       }
 
       const plain = loadPlain();
-      const contextPrompt = `${webContext}Kamu adalah asisten AI yang cakap, langsung, dan efisien.
+            const openaiDocsCtx = getOpenAIDocsContext("");
+      const contextPrompt = `${webContext}${openaiDocsCtx}Kamu adalah asisten AI yang cakap, langsung, dan efisien.
 
 
 # Personality
@@ -643,6 +837,7 @@ Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab 
 - Karena kamu sudah melalui fase "menganalisis" dan "merangkum", langsung berikan HASIL AKHIR berupa rangkuman atau jawaban konkret
 - Jangan menjelaskan proses berpikir atau bagaimana kamu sampai pada jawaban
 - Jangan mengulang pertanyaan user
+- Jika pertanyaan terkait API OpenAI, model AI, atau dokumentasi terbaru, gunakan dokumentasi OpenAI yang sudah disediakan di atas untuk memastikan jawaban akurat dan tidak kadaluarsa
 - Jika diminta kode, berikan kode langsung tanpa penjelasan panjang
 - Jika diminta penjelasan, berikan intisari saja
 
@@ -654,6 +849,10 @@ Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
 ${plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n')}
 
 ${REGULATIONS ? '\n# Regulasi Keamanan\n' + REGULATIONS : ''}
+
+${DATA_CONTENT ? '\n# Format Pesan (Content Blocks)\n' + DATA_CONTENT : ''}
+
+${LICENSE_TEXT ? '\n# Lisensi\n' + LICENSE_TEXT : ''}
 
 ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
 

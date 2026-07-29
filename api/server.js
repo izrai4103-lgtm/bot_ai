@@ -7,12 +7,26 @@ const ROOT = join(__dirname, '..');
 const PUBLIC = join(ROOT, 'public');
 
 // ============ PLAIN.JSON ============
-const PLAIN_PATH = join(ROOT, 'plain.json');
+const PLAIN_PATH = "/tmp/plain.json";
+const PLAIN_SEED = join(ROOT, "plain.json");
 
 function loadPlain() {
-  try {
-    return JSON.parse(readFileSync(PLAIN_PATH, 'utf-8'));
-  } catch { return { version: 1, learnings: [], knowledge: {}, preferences: {}, stats: { total_conversations: 0, total_learnings: 0, last_updated: null } }; }
+  // Warm start: /tmp/plain.json
+  if (existsSync(PLAIN_PATH)) {
+    try {
+      return JSON.parse(readFileSync(PLAIN_PATH, 'utf-8'));
+    } catch {}
+  }
+  // Cold start: seed dari repo
+  if (existsSync(PLAIN_SEED)) {
+    try {
+      const seed = JSON.parse(readFileSync(PLAIN_SEED, 'utf-8'));
+      try { writeFileSync(PLAIN_PATH, JSON.stringify(seed, null, 2), 'utf-8'); } catch {}
+      return seed;
+    } catch {}
+  }
+  // Fallback
+  return { version: 1, learnings: [], knowledge: {}, preferences: {}, stats: { total_conversations: 0, total_learnings: 0, last_updated: null } };
 }
 
 function savePlain(data) {
@@ -21,6 +35,10 @@ function savePlain(data) {
 
 function addLearning(userMsg, aiMsg) {
   const plain = loadPlain();
+  // Batasi jumlah learnings maks 500
+  if (plain.learnings.length > 500) {
+    plain.learnings = plain.learnings.slice(-250);
+  }
   plain.learnings.push({
     id: Date.now().toString(),
     user_message: userMsg,

@@ -177,7 +177,7 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
     <!-- Header -->
     <header class="header">
       <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-      <div class="header-title" id="headerTitle">Bot AI</div>
+      <div class="header-title" id="headerTitle">Bot AI<span id="webSearchIndicator" style="display:none;font-size:11px;background:rgba(16,163,127,.15);color:var(--accent);padding:2px 8px;border-radius:10px;margin-left:8px">🌐 Web</span></div>
       <div class="header-actions">
         <div class="model-badge">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -197,6 +197,9 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
       <div class="input-inner">
         
         <button class="stop-btn" id="stopBtn" onclick="stopGeneration()">■ Stop</button>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <button class="search-toggle" id="searchToggle" onclick="toggleWebSearch()"><span class="icon">🌐</span><span class="label">Cari Web</span></button>
+        </div>
         <div class="input-wrapper">
           <textarea id="chatInput" rows="1" placeholder="Kirim pesan..." oninput="autoResize(this)" onkeydown="handleKeyDown(event)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
@@ -215,7 +218,11 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 // ============ STATE ============
 let messages = [];
 let currentModel = 'qwen/qwen3.6-27b';
-let isGenerating = false;
+let 
+      // Hide web search indicator
+      const wsk = document.getElementById('webSearchIndicator');
+      if (wsk) wsk.style.display = 'none';
+isGenerating = false;
 let abortController = null;
 let chatHistory = JSON.parse(localStorage.getItem('bot_ai_chats') || '[]');
 let activeChatId = localStorage.getItem('bot_ai_active_chat') || null;
@@ -269,6 +276,34 @@ function handleKeyDown(e) {
 
 
 // ============ SEND MESSAGE ============
+
+// ============ WEB SEARCH ============
+let webSearchEnabled = false;
+
+function toggleWebSearch() {
+  webSearchEnabled = !webSearchEnabled;
+  const btn = document.getElementById('searchToggle');
+  if (btn) {
+    btn.classList.toggle('active', webSearchEnabled);
+    btn.innerHTML = webSearchEnabled ? '<span class="icon">🌐</span><span class="label">Cari Web: ON</span>' : '<span class="icon">🌐</span><span class="label">Cari Web</span>';
+  }
+}
+
+// Search the web directly
+async function searchWeb(query) {
+  try {
+    const res = await fetch('/api/web/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    });
+    const data = await res.json();
+    return data.results || [];
+  } catch (e) {
+    return [];
+  }
+}
+
 async function sendMessage() {
   const text = chatInput.value.trim();
   if (!text || isGenerating) return;
@@ -302,7 +337,8 @@ async function sendMessage() {
     if (el) {
       const tEl = el.querySelector('.text');
       if (tEl && !el.dataset.contentReceived) {
-        tEl.innerHTML = '<div class="thinking-status">' + THINKING_PHASES[thinkingPhaseIndex].icon + ' ' + THINKING_PHASES[thinkingPhaseIndex].text + '</div>';
+        tEl.innerHTML = '<div class="thinking-status">' + THINKING_PHASES[thinkingPhaseIndex].icon + ' ' + THINKING_PHASES[thinkingPhaseIndex].text + '</div>';,
+        web_search: webSearchEnabled
       }
     }
   }, 2500);
@@ -311,7 +347,11 @@ async function sendMessage() {
   saveChat(text, '');
   
   // Lock scroll and send to API
-  isGenerating = true;
+  
+      // Show web search indicator
+      const wsk = document.getElementById('webSearchIndicator');
+      if (wsk) wsk.style.display = webSearchEnabled ? 'inline' : 'none';
+isGenerating = true;
   stopBtn.classList.add('show');
   abortController = new AbortController();
   lockScroll();

@@ -78,6 +78,84 @@ function normalizeMessages(messages) {
     return msg;
   });
 }
+// ============ WEB SEARCH & BROWSE ============
+const SEARCH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+// Search DuckDuckGo (free, no API key needed)
+async function webSearch(query) {
+  try {
+    const url = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query);
+    const response = await fetch(url, { headers: { 'User-Agent': SEARCH_USER_AGENT } });
+    const html = await response.text();
+    const results = [];
+    // Parse result items
+    const blocks = html.split('<div class="result');
+    for (let i = 1; i < blocks.length && results.length < 5; i++) {
+      const block = blocks[i];
+      const urlMatch = block.match(/<a[^>]*class="result__a"[^>]*href="([^"]*)/);
+      const titleMatch = block.match(/<h2[^>]*>([\s\S]*?)<\/h2>/);
+      const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
+      if (urlMatch) {
+        let href = urlMatch[1];
+        if (href.startsWith('//')) href = 'https:' + href;
+        results.push({
+          url: href,
+          title: titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').trim() : 'No title',
+          snippet: snippetMatch ? snippetMatch[1].replace(/<[^>]*>/g, '').trim() : ''
+        });
+      }
+    }
+    return results;
+  } catch (err) {
+    console.error('Web search error:', err.message);
+    return [];
+  }
+}
+
+// Browse and extract text from a URL
+async function browseUrl(targetUrl) {
+  try {
+    const response = await fetch(targetUrl, {
+      headers: { 'User-Agent': SEARCH_USER_AGENT },
+      signal: AbortSignal.timeout(10000)
+    });
+    const html = await response.text();
+    let text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&[^;]+;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (text.length > 8000) text = text.substring(0, 8000) + '... [truncated]';
+    return text;
+  } catch (err) {
+    console.error('Browse error:', err.message);
+    return 'Error: Tidak dapat mengakses URL tersebut. ' + err.message;
+  }
+}
+
+// Search web and format results for AI context
+async function researchQuery(query) {
+  const searchResults = await webSearch(query);
+  if (searchResults.length === 0) {
+    return 'Pencarian web tidak menghasilkan hasil.';
+  }
+  let context = 'Hasil pencarian web untuk "' + query + '":\n\n';
+  searchResults.forEach((r, i) => {
+    context += (i + 1) + '. ' + r.title + '\n   URL: ' + r.url + '\n   Ringkasan: ' + r.snippet + '\n\n';
+  });
+  if (searchResults[0].url && !searchResults[0].url.includes('duckduckgo.com')) {
+    const detail = await browseUrl(searchResults[0].url);
+    context += '\nDetail dari halaman utama (' + searchResults[0].url + '):\n' + detail.substring(0, 4000) + '\n';
+  }
+  return context;
+}
+
+
 
 function addLearning(userMsg, aiMsg) {
   const plain = loadPlain();
@@ -236,7 +314,55 @@ export default async function handler(req, res) {
     // GET /api/v1/files/
     if (path.startsWith('/api/v1/files')) return res.json({ data: [] });
 
-    // ============ OPENAI COMPATIBLE ENDPOINTS ============
+    
+
+    // ============ WEB SEARCH & BROWSE API ============
+    if (path === '/api/web/search' && method === 'POST') {
+      const { query } = body;
+      if (!query) return res.json({ results: [], error: 'Query diperlukan' });
+      const results = await webSearch(query);
+      return res.json({ results, query });
+    }
+
+    if (path === '/api/web/browse' && method === 'POST') {
+      const { url } = body;
+      if (!url) return res.json({ error: 'URL diperlukan' });
+      const content = await browseUrl(url);
+      return res.json({ url, content: content.substring(0, 5000) });
+    }
+
+    if (path === '/api/web/research' && method === 'POST') {
+      const { query } = body;
+      if (!query) return res.json({ context: '', error: 'Query diperlukan' });
+      const context = await researchQuery(query);
+      return res.json({ query, context });
+    }
+
+    // GET /api/web/search
+    if (path === '/api/web/search' && method === 'GET') {
+      const q = url.searchParams.get('q');
+      if (!q) return res.json({ results: [], error: 'Query parameter q diperlukan' });
+      const results = await webSearch(q);
+      return res.json({ results, query: q });
+    }
+
+    // GET /api/web/browse
+    if (path === '/api/web/browse' && method === 'GET') {
+      const targetUrl = url.searchParams.get('url');
+      if (!targetUrl) return res.json({ error: 'URL parameter url diperlukan' });
+      const content = await browseUrl(targetUrl);
+      return res.json({ url: targetUrl, content: content.substring(0, 5000) });
+    }
+
+    // GET /api/web/research
+    if (path === '/api/web/research' && method === 'GET') {
+      const q = url.searchParams.get('q');
+      if (!q) return res.json({ context: '', error: 'Query parameter q diperlukan' });
+      const context = await researchQuery(q);
+      return res.json({ query: q, context });
+    }
+
+// ============ OPENAI COMPATIBLE ENDPOINTS ============
     
     // GET /openai/models - List Groq models
     if (path === '/openai/models') {
@@ -257,7 +383,23 @@ export default async function handler(req, res) {
 
       // Add system message with plain.json knowledge
       const plain = loadPlain();
-      const systemMsg = `Kamu adalah asisten AI yang cakap, langsung, dan efisien.
+      // Web search integration for OpenAI-compatible endpoint
+      let openaiWebContext = '';
+      if (body.web_search === true && messages.length > 0) {
+        const lastUserMsg = messages.filter(m => m.role === 'user').pop();
+        if (lastUserMsg) {
+          const msgText = typeof lastUserMsg.content === 'string' ? lastUserMsg.content : JSON.stringify(lastUserMsg.content);
+          try {
+            const searchData = await researchQuery(msgText);
+            openaiWebContext = '# Hasil Riset Web\n' + searchData + '\n\n---\n\nGunakan informasi di atas untuk menjawab pertanyaan user. Cantumkan sumber URL jika relevan.\n\n';
+          } catch (e) {
+            console.error('Web search error:', e.message);
+          }
+        }
+      }
+
+
+      const systemMsg = `${openaiWebContext}Kamu adalah asisten AI yang cakap, langsung, dan efisien.
 
 # Personality
 Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab dengan singkat, padat, dan langsung ke inti. Gunakan bahasa Indonesia yang alami dan mudah dipahami.
@@ -384,11 +526,21 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
       if (body.messages) {
         body.messages = normalizeMessages(body.messages);
       }
-      const { message, model, system } = body;
+      
+      const { message, model, system, web_search, history } = body;
       if (!message) return res.status(400).json({ error: 'Message required' });
 
+      // Web search integration
+      let webContext = '';
+      if (web_search === true) {
+        const msgText = typeof message === 'object' ? (message.content || JSON.stringify(message)) : message;
+        const searchData = await researchQuery(msgText);
+        webContext = '# Hasil Riset Web\n' + searchData + '\n\n---\n\nGunakan informasi di atas untuk menjawab pertanyaan user. Cantumkan sumber URL jika relevan.\n\n';
+      }
+
       const plain = loadPlain();
-      const contextPrompt = `Kamu adalah asisten AI yang cakap, langsung, dan efisien.
+      const contextPrompt = `${webContext}Kamu adalah asisten AI yang cakap, langsung, dan efisien.
+
 
 # Personality
 Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab dengan singkat, padat, dan langsung ke inti. Gunakan bahasa Indonesia yang alami dan mudah dipahami.
@@ -423,7 +575,7 @@ ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
           messages: [
             { role: 'system', content: contextPrompt },
             { role: 'user', content: message }
-          ],
+          ].concat(history || []),
           stream: true,
           temperature: 0.7,
           max_tokens: 4096

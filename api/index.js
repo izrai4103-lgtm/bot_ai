@@ -933,6 +933,11 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
       // Ambil pesan user
       const userMsg = typeof message === 'object' ? (message.content || JSON.stringify(message)) : message;
 
+      // Set headers FIRST before any res.write()
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
       // ============ MULTI-AGENT FLOW ============
       
       // 1. SEARCH AGENT - Riset web (jika diminta)
@@ -989,10 +994,6 @@ ${LICENSE_TEXT ? '\\n# Lisensi\\n' + LICENSE_TEXT : ''}
 ${system ? '\\n### Instruksi\\n' + system : ''}`;
 
       try {
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        
         // 4. ELENA - Generate jawaban (streaming)
         res.write('data: ' + JSON.stringify({ agent: 'elena', content: '' }) + '\\n\\n');
         

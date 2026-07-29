@@ -7,7 +7,15 @@
 const SANDBOX_URL = process.env.SANDBOX_URL || null;
 const FALLBACK_ENABLED = process.env.SANDBOX_FALLBACK !== 'false';
 
+const FALLBACK_MODELS = [
+  'qwen/qwen3.6-27b',
+  'llama-3.1-8b-instant',
+  'llama-3.3-70b-versatile',
+  'openai/gpt-oss-20b',
+];
+
 let groqInstance = null;
+let _currentModelIdx = 0;
 
 async function getGroq() {
   if (groqInstance) return groqInstance;
@@ -52,21 +60,32 @@ export async function sandboxChat({ prompt, history, model, temperature, maxToke
   if (history) messages.push(...history);
   messages.push({ role: 'user', content: prompt });
 
-  try {
-    const completion = await client.chat.completions.create({
-      model: model || 'qwen/qwen3.6-27b',
-      messages,
-      temperature: temperature || 0.7,
-      max_tokens: maxTokens || 4096,
-      stream: false,
-    });
-    const text = completion.choices[0]?.message?.content || '';
-    stats.total_tokens += completion.usage?.total_tokens || 0;
-    return text;
-  } catch (err) {
-    stats.errors++;
-    throw err;
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const completion = await client.chat.completions.create({
+        model: model || FALLBACK_MODELS[_currentModelIdx % FALLBACK_MODELS.length],
+        messages,
+        temperature: temperature || 0.7,
+        max_tokens: maxTokens || 4096,
+        stream: false,
+      });
+      const text = completion.choices[0]?.message?.content || '';
+      stats.total_tokens += completion.usage?.total_tokens || 0;
+      return text;
+    } catch (err) {
+      lastErr = err;
+      stats.errors++;
+      // If rate limited, try next model
+      if (err.status === 429 || (err.message && err.message.includes('rate_limit'))) {
+        _currentModelIdx = (_currentModelIdx + 1) % FALLBACK_MODELS.length;
+        console.warn('Rate limited on model, switching to:', FALLBACK_MODELS[_currentModelIdx]);
+        continue;
+      }
+      throw err;
+    }
   }
+  throw lastErr;
 }
 
 /**
@@ -119,23 +138,36 @@ export async function* sandboxChatStream({ prompt, history, model, temperature, 
   if (history) messages.push(...history);
   messages.push({ role: 'user', content: prompt });
 
-  try {
-    const stream = await client.chat.completions.create({
-      model: model || 'qwen/qwen3.6-27b',
-      messages,
-      temperature: temperature || 0.7,
-      max_tokens: maxTokens || 4096,
-      stream: true,
-    });
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) yield { content, done: false };
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const stream = await client.chat.completions.create({
+        model: model || FALLBACK_MODELS[_currentModelIdx % FALLBACK_MODELS.length],
+        messages,
+        temperature: temperature || 0.7,
+        max_tokens: maxTokens || 4096,
+        stream: true,
+      });
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) yield { content, done: false };
+      }
+      yield { content: '', done: true };
+      return;
+    } catch (err) {
+      lastErr = err;
+      stats.errors++;
+      if (err.status === 429 || (err.message && err.message.includes('rate_limit'))) {
+        _currentModelIdx = (_currentModelIdx + 1) % FALLBACK_MODELS.length;
+        console.warn('Rate limited on stream model, switching to:', FALLBACK_MODELS[_currentModelIdx]);
+        continue;
+      }
+      throw err;
     }
-    yield { content: '', done: true };
-  } catch (err) {
-    stats.errors++;
-    throw err;
   }
+  // All models exhausted
+  yield { content: '\n\n⚠️ Semua model AI sedang kehabisan kuota harian. Tunggu reset (biasanya tengah malam UTC) atau upgrade akun Groq.', done: false };
+  yield { content: '', done: true };
 }
 
 export async function checkSandbox() {

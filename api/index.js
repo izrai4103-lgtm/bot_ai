@@ -951,7 +951,7 @@ if (path === '/api/debug') {
 
 // force rebuild 1785301524
 
-// ============ STANDALONE SERVER (for Fly.io / local dev) ============
+// ============ STANDALONE SERVER (for local dev / Docker) ============
 // When this file is run directly with `node api/index.js`, start an HTTP server
 import { createServer } from 'http';
 

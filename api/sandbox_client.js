@@ -9,14 +9,15 @@ const FALLBACK_ENABLED = process.env.SANDBOX_FALLBACK !== 'false';
 
 // Ollama local model support
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:14b';
 const USE_LOCAL = process.env.USE_LOCAL_MODEL === 'true';
 
+// Fallback models (hanya dipakai jika Groq cloud di Vercel)
+// Untuk local: USE_LOCAL_MODEL=true pakai Ollama langsung
 const FALLBACK_MODELS = [
   'qwen/qwen3.6-27b',
   'llama-3.1-8b-instant',
   'llama-3.3-70b-versatile',
-  'openai/gpt-oss-20b',
 ];
 
 let groqInstance = null;

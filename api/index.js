@@ -99,7 +99,7 @@ export default async function handler(req, res) {
         name: 'Bot AI',
         version: '1.0.0',
         default_locale: 'id-ID',
-        default_models: 'llama-3.3-70b-versatile',
+        default_models: 'groq/compound',
         default_prompt_suggestions: [
           { content: 'Apa kabar?', title: ['Sapa', 'Sapa bot'] },
           { content: 'Jelaskan AI dalam bahasa sederhana', title: ['Edukasi', 'Belajar AI'] },
@@ -131,11 +131,11 @@ export default async function handler(req, res) {
     // GET /api/v1/models or /api/models
     if (path === '/api/v1/models' || path === '/api/models') {
       const models = [
-        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
-        { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
-        { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
-        { id: 'gemma2-9b-it', name: 'Gemma 2 9B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
-        { id: 'deepseek-r1-distill-llama-70b', name: 'DeepSeek R1 70B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } }
+        { id: 'groq/compound', name: 'Groq Compound', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
+        { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
+        { id: 'qwen/qwen3.6-27b', name: 'Qwen 3.6 27B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
+        { id: 'groq/compound-mini', name: 'Groq Compound Mini', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
+        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } }
       ];
       return res.json({ data: models });
     }
@@ -206,11 +206,11 @@ export default async function handler(req, res) {
     if (path === '/openai/models') {
       return res.json({
         data: [
-          { id: 'llama-3.3-70b-versatile', object: 'model', owned_by: 'groq' },
+          { id: 'groq/compound', object: 'model', owned_by: 'groq' },
           { id: 'llama-3.1-8b-instant', object: 'model', owned_by: 'groq' },
-          { id: 'mixtral-8x7b-32768', object: 'model', owned_by: 'groq' },
-          { id: 'gemma2-9b-it', object: 'model', owned_by: 'groq' },
-          { id: 'deepseek-r1-distill-llama-70b', object: 'model', owned_by: 'groq' }
+          { id: 'qwen/qwen3.6-27b', object: 'model', owned_by: 'groq' },
+          { id: 'groq/compound-mini', object: 'model', owned_by: 'groq' },
+          { id: 'llama-3.3-70b-versatile', object: 'model', owned_by: 'groq' }
         ]
       });
     }
@@ -219,7 +219,7 @@ export default async function handler(req, res) {
     // POST /api/chat/completions
     if ((path === '/openai/chat/completions' || path === '/api/chat/completions' || path === '/api/v1/chat/completions') && method === 'POST') {
       const client = await getGroq();
-      const model = body.model || 'llama-3.3-70b-versatile';
+      const model = body.model || 'groq/compound';
       const messages = body.messages || [];
       const stream = body.stream !== false;
 
@@ -323,7 +323,7 @@ ${system ? '\nInstruksi tambahan: ' + system : ''}`;
 
       try {
         const streamResp = await client.chat.completions.create({
-          model: model || 'llama-3.3-70b-versatile',
+          model: model || 'groq/compound',
           messages: [
             { role: 'system', content: contextPrompt },
             { role: 'user', content: message }

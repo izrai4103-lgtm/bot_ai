@@ -12,7 +12,7 @@ COPY api/sandbox_server.py .
 
 # Environment
 ENV PORT=8000
-ENV SANDBOX_MODEL=qwen3.6-27b
+ENV SANDBOX_MODEL=qwen/qwen3.6-27b
 
 EXPOSE 8000
 

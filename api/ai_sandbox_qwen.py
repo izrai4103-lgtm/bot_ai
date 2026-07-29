@@ -22,7 +22,7 @@ class AISandbox:
     Sandbox aman untuk menjalankan model Qwen via Groq API.
     
     Contoh:
-        sandbox = AISandbox(api_key="gsk_...", model="qwen3.6-27b")
+        sandbox = AISandbox(api_key="gsk_...", model="qwen/qwen3.6-27b")
         response = sandbox.chat("Halo!")
         for chunk in sandbox.chat_stream("Halo!"):
             print(chunk, end="")
@@ -31,7 +31,7 @@ class AISandbox:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "qwen3.6-27b",
+        model: str = "qwen/qwen3.6-27b",
         temperature: float = 0.7,
         max_tokens: int = 4096,
         system_prompt: Optional[str] = None,
@@ -283,7 +283,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     
     sandbox = AISandbox(
-        model="qwen3.6-27b",
+        model="qwen/qwen3.6-27b",
         temperature=0.7,
     )
     

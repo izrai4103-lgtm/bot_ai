@@ -27,7 +27,7 @@ class ChatRequest(BaseModel):
     history: Optional[list] = Field(None, description="Riwayat chat")
     temperature: Optional[float] = Field(None, ge=0, le=2)
     max_tokens: Optional[int] = Field(None, ge=1, le=16384)
-    model: Optional[str] = Field("qwen3.6-27b")
+    model: Optional[str] = Field("qwen/qwen3.6-27b")
     system: Optional[str] = Field(None, description="System prompt kustom")
 
 class ChatResponse(BaseModel):
@@ -73,7 +73,7 @@ def get_sandbox() -> AISandbox:
     if _sandbox is None:
         _sandbox = AISandbox(
             api_key=os.environ.get("GROQ_API_KEY"),
-            model=os.environ.get("SANDBOX_MODEL", "qwen3.6-27b"),
+            model=os.environ.get("SANDBOX_MODEL", "qwen/qwen3.6-27b"),
             temperature=float(os.environ.get("SANDBOX_TEMPERATURE", "0.7")),
             max_tokens=int(os.environ.get("SANDBOX_MAX_TOKENS", "4096")),
         )
@@ -87,7 +87,7 @@ def get_sandbox() -> AISandbox:
 async def health():
     return {
         "status": "ok",
-        "model": os.environ.get("SANDBOX_MODEL", "qwen3.6-27b"),
+        "model": os.environ.get("SANDBOX_MODEL", "qwen/qwen3.6-27b"),
         "sandbox_ready": _sandbox is not None,
     }
 

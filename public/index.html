@@ -351,10 +351,12 @@ async function sendMessage() {
   // Save chat
   saveChat(text, '');
   
-  // Send to API
+  // Lock scroll and send to API
   isGenerating = true;
   stopBtn.classList.add('show');
   abortController = new AbortController();
+  lockScroll();
+  scrollToBottom();
   
   try {
     const res = await fetch('/api/chat', {
@@ -413,6 +415,8 @@ async function sendMessage() {
     isGenerating = false;
     stopBtn.classList.remove('show');
     abortController = null;
+    unlockScroll();
+    scrollToBottom();
   }
 }
 
@@ -420,6 +424,7 @@ function stopGeneration() {
   if (abortController) {
     abortController.abort();
   }
+  unlockScroll();
 }
 
 // ============ MESSAGES ============
@@ -504,6 +509,33 @@ function copyMessage(id) {
 }
 
 // ============ SCROLL ============
+// Lock scroll during AI generation (like ChatGPT)
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  });
+}
+function lockScroll() {
+  messagesEl.style.overflowY = 'hidden';
+  scrollToBottom();
+}
+function unlockScroll() {
+  messagesEl.style.overflowY = 'auto';
+}
+// Patch addMessage to auto-scroll
+const _origAddMessage = addMessage;
+addMessage = function(role, content, id, isTyping) {
+  const result = _origAddMessage.call(this, role, content, id, isTyping);
+  if (isGenerating) scrollToBottom();
+  return result;
+};
+// Patch updateMessage to auto-scroll
+const _origUpdateMessage = updateMessage;
+updateMessage = function(id, content) {
+  _origUpdateMessage.call(this, id, content);
+  if (isGenerating) scrollToBottom();
+};
+
 // ============ SUGGESTIONS ============
 function suggestClick(text) {
   chatInput.value = text;

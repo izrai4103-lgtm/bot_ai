@@ -81,35 +81,114 @@ function normalizeMessages(messages) {
 // ============ WEB SEARCH & BROWSE ============
 const SEARCH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-// Search DuckDuckGo (free, no API key needed)
+// Search the web using multiple sources (free, no API key needed)
 async function webSearch(query) {
+  // Try DuckDuckGo Instant Answer API first
   try {
-    const url = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query);
-    const response = await fetch(url, { headers: { 'User-Agent': SEARCH_USER_AGENT } });
-    const html = await response.text();
+    const ddgUrl = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json&no_html=1&skip_disambig=1';
+    const response = await fetch(ddgUrl, { 
+      headers: { 'User-Agent': SEARCH_USER_AGENT },
+      signal: AbortSignal.timeout(8000)
+    });
+    const data = await response.json();
     const results = [];
-    // Parse result items
-    const blocks = html.split('<div class="result');
-    for (let i = 1; i < blocks.length && results.length < 5; i++) {
-      const block = blocks[i];
-      const urlMatch = block.match(/<a[^>]*class="result__a"[^>]*href="([^"]*)/);
-      const titleMatch = block.match(/<h2[^>]*>([\s\S]*?)<\/h2>/);
-      const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
-      if (urlMatch) {
-        let href = urlMatch[1];
-        if (href.startsWith('//')) href = 'https:' + href;
-        results.push({
-          url: href,
-          title: titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').trim() : 'No title',
-          snippet: snippetMatch ? snippetMatch[1].replace(/<[^>]*>/g, '').trim() : ''
-        });
+    // Check abstract
+    if (data.AbstractText) {
+      results.push({
+        url: data.AbstractURL || 'https://duckduckgo.com',
+        title: data.Heading || query,
+        snippet: data.AbstractText.substring(0, 500)
+      });
+    }
+    // Check answer
+    if (data.Answer && data.Answer !== data.AbstractText) {
+      results.push({
+        url: data.AnswerURL || 'https://duckduckgo.com',
+        title: data.Heading || query,
+        snippet: data.Answer.substring(0, 500)
+      });
+    }
+    // Check related topics
+    if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
+      for (const topic of data.RelatedTopics) {
+        if (results.length >= 5) break;
+        if (topic.Text) {
+          results.push({
+            url: topic.FirstURL || 'https://duckduckgo.com',
+            title: topic.Text ? topic.Text.split(' - ')[0] : query,
+            snippet: topic.Text ? topic.Text.substring(0, 500) : ''
+          });
+        }
       }
     }
-    return results;
+    if (results.length > 0) return results;
   } catch (err) {
-    console.error('Web search error:', err.message);
-    return [];
+    console.error('DDG API error:', err.message);
   }
+
+  // Fallback: Try DuckDuckGo HTML search
+  try {
+    const url2 = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query);
+    const response2 = await fetch(url2, { 
+      headers: { 'User-Agent': SEARCH_USER_AGENT },
+      signal: AbortSignal.timeout(8000)
+    });
+    const html = await response2.text();
+    const results = [];
+    // Parse using simpler regex
+    const linkRegex = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+    const snippetRegex = /class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\//gi;
+    const urls = []; const titles = []; const snippets = [];
+    let m;
+    while ((m = linkRegex.exec(html)) !== null) {
+      let href = m[1];
+      if (href.startsWith('//')) href = 'https:' + href;
+      if (href.startsWith('/')) href = 'https://duckduckgo.com' + href;
+      urls.push(href);
+      titles.push(m[2].replace(/<[^>]*>/g, '').trim());
+      if (urls.length >= 5) break;
+    }
+    while ((m = snippetRegex.exec(html)) !== null) {
+      snippets.push(m[1].replace(/<[^>]*>/g, '').trim());
+      if (snippets.length >= 5) break;
+    }
+    for (let i = 0; i < urls.length; i++) {
+      results.push({
+        url: urls[i] || 'https://duckduckgo.com',
+        title: titles[i] || query,
+        snippet: snippets[i] || ''
+      });
+    }
+    if (results.length > 0) return results;
+  } catch (err) {
+    console.error('DDG HTML error:', err.message);
+  }
+
+  // Last fallback: Try Google search
+  try {
+    const googleUrl = 'https://www.google.com/search?q=' + encodeURIComponent(query) + '&num=5';
+    const response3 = await fetch(googleUrl, {
+      headers: { 'User-Agent': SEARCH_USER_AGENT },
+      signal: AbortSignal.timeout(5000)
+    });
+    const html3 = await response3.text();
+    const results = [];
+    const gLinkRegex = /<a[^>]*href="\/url\?q=([^"&]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+    let m;
+    while ((m = gLinkRegex.exec(html3)) !== null) {
+      if (results.length >= 5) break;
+      results.push({
+        url: decodeURIComponent(m[1]),
+        title: m[2].replace(/<[^>]*>/g, '').trim(),
+        snippet: ''
+      });
+    }
+    if (results.length > 0) return results;
+  } catch (err) {
+    console.error('Google search error:', err.message);
+  }
+
+  return [];
 }
 
 // Browse and extract text from a URL
@@ -142,15 +221,25 @@ async function browseUrl(targetUrl) {
 async function researchQuery(query) {
   const searchResults = await webSearch(query);
   if (searchResults.length === 0) {
-    return 'Pencarian web tidak menghasilkan hasil.';
+    return 'Pencarian web untuk "' + query + '" tidak menghasilkan hasil dari sumber eksternal. Jawab berdasarkan pengetahuan yang kamu miliki.';
   }
-  let context = 'Hasil pencarian web untuk "' + query + '":\n\n';
+  let context = '## Hasil Riset Web\nPertanyaan: "' + query + '"\n\n';
   searchResults.forEach((r, i) => {
-    context += (i + 1) + '. ' + r.title + '\n   URL: ' + r.url + '\n   Ringkasan: ' + r.snippet + '\n\n';
+    context += '### ' + (i + 1) + '. ' + r.title + '\n';
+    context += '- **URL**: ' + r.url + '\n';
+    context += '- **Ringkasan**: ' + (r.snippet || 'Tidak ada ringkasan') + '\n\n';
   });
-  if (searchResults[0].url && !searchResults[0].url.includes('duckduckgo.com')) {
-    const detail = await browseUrl(searchResults[0].url);
-    context += '\nDetail dari halaman utama (' + searchResults[0].url + '):\n' + detail.substring(0, 4000) + '\n';
+  // Browse the top result for more detail (skip if it looks like a search portal)
+  const topUrl = searchResults[0].url;
+  if (topUrl && !topUrl.includes('duckduckgo.com') && !topUrl.includes('google.com')) {
+    try {
+      const detail = await browseUrl(topUrl);
+      if (detail && !detail.startsWith('Error:')) {
+        context += '### Detail dari halaman utama\n**URL**: ' + topUrl + '\n**Konten**:\n' + detail.substring(0, 3000) + '\n\n';
+      }
+    } catch (e) {
+      // Silently skip if browse fails
+    }
   }
   return context;
 }

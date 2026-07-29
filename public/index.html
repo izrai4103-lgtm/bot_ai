@@ -144,6 +144,28 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 .message-actions{display:flex;align-items:center;margin-top:8px;gap:8px}
 .message-actions button{background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:4px;transition:background .15s;display:flex;align-items:center;gap:4px}
 .message-actions button:hover{background:var(--bg-hover);color:var(--text-primary)}
+
+/* Question Form - like Claude.ai */
+/* Poll style - like WhatsApp */
+.poll-container{background:var(--bg-tertiary);border-radius:16px;padding:16px;margin:12px 0;width:100%;max-width:400px}
+.poll-question{font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:4px;line-height:1.4}
+.poll-desc{font-size:12px;color:var(--text-tertiary);margin-bottom:12px}
+.poll-options{display:flex;flex-direction:column;gap:6px}
+.poll-option{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:all .15s;font-size:14px;color:var(--text-primary)}
+.poll-option:hover{border-color:var(--accent);background:var(--bg-hover)}
+.poll-option.selected{border-color:var(--accent);background:rgba(16,163,127,.08)}
+.poll-option input[type=radio]{appearance:none;-webkit-appearance:none;width:20px;height:20px;border:2px solid var(--text-tertiary);border-radius:50%;flex-shrink:0;position:relative;transition:all .15s;cursor:pointer}
+.poll-option input[type=radio]:checked{border-color:var(--accent);background:var(--accent)}
+.poll-option input[type=radio]:checked::after{content:'';position:absolute;top:5px;left:5px;width:6px;height:6px;background:#fff;border-radius:50%}
+.poll-option input[type=checkbox]{appearance:none;-webkit-appearance:none;width:20px;height:20px;border:2px solid var(--text-tertiary);border-radius:4px;flex-shrink:0;position:relative;transition:all .15s;cursor:pointer}
+.poll-option input[type=checkbox]:checked{border-color:var(--accent);background:var(--accent)}
+.poll-option input[type=checkbox]:checked::after{content:'✓';position:absolute;top:-1px;left:3px;font-size:14px;color:#fff;font-weight:700}
+.poll-vote-btn{display:block;width:100%;margin-top:14px;padding:12px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s;text-align:center}
+.poll-vote-btn:hover{background:var(--accent-hover)}
+.poll-vote-btn:disabled{opacity:.4;cursor:default}
+.poll-vote-btn:disabled:hover{background:var(--accent)}
+.poll-counter{font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:8px}
+
 </style>
 </head>
 <body>
@@ -466,6 +488,16 @@ function updateMessage(id, content) {
 
 function formatContent(text) {
   if (!text) return '';
+  // Check if this is a questions JSON
+  const qMatch = text.match(/\{\s*"questions"\s*:\s*\[([\s\S]*?)\]\s*\}/);
+  if (qMatch) {
+    try {
+      const qData = JSON.parse(text);
+      if (qData.questions && Array.isArray(qData.questions) && qData.questions.length > 0) {
+        return renderQuestions(qData.questions);
+      }
+    } catch(e) {}
+  }
   // Escape HTML
   let esc = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   // Code blocks
@@ -633,6 +665,268 @@ try {
     sendBtn.disabled = false;
   }
 }
+
+// ============ QUESTION FORM (Claude.ai style) ============
+function renderQuestions(questions) {
+  let html = '<div class="poll-container">';
+  let totalQ = questions.length;
+  questions.forEach((q, qi) => {
+    html += '<div class="poll-question">' + escHtml(q.question) + '</div>';
+    if (q.description) html += '<div class="poll-desc">' + escHtml(q.description) + '</div>';
+    
+    if (q.type === 'rank_priorities') {
+      html += '<div class="q-rank" id="rank-' + qi + '">';
+      q.options.forEach((opt, oi) => {
+        html += '<div class="q-rank-item" data-value="' + escHtml(opt.value) + '">';
+        html += '<span class="rank-num">' + (oi + 1) + '</span>';
+        html += '<span style="flex:1">' + escHtml(opt.label) + '</span>';
+        html += '<button class="rank-up" onclick="rankMove(' + qi + ',' + oi + ',-1)">▲</button>';
+        html += '<button class="rank-down" onclick="rankMove(' + qi + ',' + oi + ',1)">▼</button>';
+        html += '</div>';
+      });
+      html += '</div>';
+    } else {
+      q.options.forEach((opt, oi) => {
+        const inputType = q.type === 'multi_select' ? 'checkbox' : 'radio';
+        const inputName = 'q_' + qi + '_' + q.id;
+        html += '<label class="poll-option">';
+        html += '<input type="' + inputType + '" name="' + inputName + '" value="' + escHtml(opt.value) + '" onchange="onQChange(' + qi + ')">';
+        html += '<span>' + escHtml(opt.label) + '</span>';
+        html += '</label>';
+      });
+      if (q.required_answer !== false) {
+        html += '<div class="poll-counter" id="req-' + qi + '" style="display:none;color:#ef4444">* Wajib dijawab</div>';
+      }
+    }
+    if (qi < totalQ - 1) html += '<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">';
+  });
+  html += '<button class="poll-vote-btn" id="qSubmitBtn" onclick="submitQuestions()">🗳️ Kirim Vote</button>';
+  html += '</div>';
+  return html;
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let _currentQuestions = null;
+let _currentMsgId = null;
+
+// Override updateMessage to track questions
+const _origUpdateMessage2 = updateMessage;
+updateMessage = function(id, content) {
+  const qMatch = content.match(/\{\s*"questions"\s*:\s*\[([\s\S]*?)\]\s*\}/);
+  if (qMatch) {
+    try {
+      const qData = JSON.parse(content);
+      if (qData.questions && Array.isArray(qData.questions)) {
+        _currentQuestions = qData.questions;
+        _currentMsgId = id;
+      }
+    } catch(e) {}
+  }
+  _origUpdateMessage2.call(this, id, content);
+};
+
+function onQChange(qi) {
+  const reqEl = document.getElementById('req-' + qi);
+  if (reqEl) reqEl.style.display = 'none';
+}
+
+function rankMove(qi, oi, dir) {
+  const container = document.getElementById('rank-' + qi);
+  if (!container) return;
+  const items = container.querySelectorAll('.q-rank-item');
+  if (oi + dir < 0 || oi + dir >= items.length) return;
+  const temp = items[oi].outerHTML;
+  items[oi].outerHTML = items[oi + dir].outerHTML;
+  items[oi + dir].outerHTML = temp;
+  // Update rank numbers
+  const newItems = container.querySelectorAll('.q-rank-item');
+  newItems.forEach((item, idx) => {
+    item.querySelector('.rank-num').textContent = idx + 1;
+  });
+}
+
+function submitQuestions() {
+  if (!_currentQuestions) return;
+  const answers = [];
+  let valid = true;
+  
+  _currentQuestions.forEach((q, qi) => {
+    if (q.type === 'rank_priorities') {
+      const container = document.getElementById('rank-' + qi);
+      if (container) {
+        const items = container.querySelectorAll('.q-rank-item');
+        const order = Array.from(items).map(item => item.dataset.value);
+        answers.push({ id: q.id, answer: order, type: 'rank_priorities' });
+      }
+    } else {
+      const opts = document.getElementsByName('q_' + qi + '_' + q.id);
+      const selected = [];
+      opts.forEach(o => { if (o.checked) selected.push(o.value); });
+      
+      if (q.required_answer !== false && selected.length === 0) {
+        const reqEl = document.getElementById('req-' + qi);
+        if (reqEl) reqEl.style.display = 'block';
+        valid = false;
+        return;
+      }
+      
+      if (q.type === 'multi_select') {
+        answers.push({ id: q.id, answer: selected, type: 'multi_select' });
+      } else {
+        answers.push({ id: q.id, answer: selected[0] || '', type: 'single_select' });
+      }
+    }
+  });
+  
+  if (!valid) return;
+  
+  // Disable submit button
+  const btn = document.getElementById('qSubmitBtn');
+  if (btn) btn.disabled = true;
+  
+  // Format answer text
+  const answerText = JSON.stringify({ answers: _currentQuestions.map((q, i) => ({ id: q.id, question: q.question, answer: answers[i].answer, type: answers[i].type })) });
+  
+  // Add user message with answers
+  addMessage('user', 'Jawaban saya:\n' + _currentQuestions.map((q, i) => {
+    const a = answers[i];
+    const optLabels = a.answer.map(v => {
+      const opt = q.options.find(o => o.value === v);
+      return opt ? opt.label : v;
+    });
+    return '- ' + q.question + '\n  → ' + optLabels.join(', ');
+  }).join('\n'));
+  
+  // Store answer for next AI response context
+  _pendingAnswer = answerText;
+  
+  // Clear questions
+  _currentQuestions = null;
+  _currentMsgId = null;
+  
+  // Auto-send answer to AI after brief delay
+  setTimeout(() => { sendMessage(); }, 300);
+}
+
+let _pendingAnswer = null;
+
+// Override sendMessage to include answer context
+const _origSendMessage = sendMessage;
+sendMessage = async function() {
+  const text = chatInput.value.trim();
+  if (!text && !_pendingAnswer) return;
+  
+  const msgText = _pendingAnswer || text;
+  _pendingAnswer = null;
+  
+  if (text) {
+    chatInput.value = '';
+    autoResize(chatInput);
+  }
+  
+  // Original sendMessage logic adapted
+  if (!msgText || isGenerating) return;
+  
+  sendBtn.disabled = true;
+  sendBtn.classList.remove('active');
+  
+  addMessage('user', msgText);
+  
+  const msgId = 'msg-' + Date.now() + '-' + (++msgCounter);
+  addMessage('assistant', '', msgId, true);
+  
+  thinkingPhaseIndex = 0;
+  const thinkingEl = document.getElementById(msgId);
+  if (thinkingEl) {
+    const textEl = thinkingEl.querySelector('.text');
+    if (textEl) {
+      textEl.innerHTML = '<div class="thinking-status">' + THINKING_PHASES[0].icon + ' ' + THINKING_PHASES[0].text + '</div>';
+    }
+  }
+  
+  if (thinkingInterval) clearInterval(thinkingInterval);
+  thinkingInterval = setInterval(() => {
+    thinkingPhaseIndex = (thinkingPhaseIndex + 1) % THINKING_PHASES.length;
+    const el = document.getElementById(msgId);
+    if (el) {
+      const tEl = el.querySelector('.text');
+      if (tEl && !el.dataset.contentReceived) {
+        tEl.innerHTML = '<div class="thinking-status">' + THINKING_PHASES[thinkingPhaseIndex].icon + ' ' + THINKING_PHASES[thinkingPhaseIndex].text + '</div>';
+      }
+    }
+  }, 2500);
+  
+  isGenerating = true;
+  stopBtn.classList.add('show');
+  abortController = new AbortController();
+  lockScroll();
+  scrollToBottom();
+  
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msgText, model: currentModel || 'qwen/qwen3.6-27b' }),
+      signal: abortController.signal
+    });
+
+    if (!res.ok) throw new Error('Network error');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullContent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) {
+              updateMessage(msgId, 'Error: ' + parsed.error);
+              continue;
+            }
+            if (parsed.content) {
+              fullContent += parsed.content;
+              updateMessage(msgId, fullContent);
+            }
+          } catch {}
+        }
+      }
+    }
+
+    updateChatHistory(msgText, fullContent);
+    
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      updateMessage(msgId, '⏸️ Generasi dihentikan.');
+    } else {
+      updateMessage(msgId, '❌ Error: ' + err.message + '\n\nSilakan coba lagi atau refresh halaman.');
+    }
+  } finally {
+    if (thinkingInterval) {
+      clearInterval(thinkingInterval);
+      thinkingInterval = null;
+    }
+    isGenerating = false;
+    stopBtn.classList.remove('show');
+    abortController = null;
+    unlockScroll();
+    scrollToBottom();
+  }
+};
+
 </script>
 </body>
 </html>

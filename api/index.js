@@ -682,6 +682,34 @@ export default async function handler(req, res) {
             const openaiDocsCtx = getOpenAIDocsContext("");
       const systemMsg = `${openaiWebContext}${openaiDocsCtx}Kamu adalah asisten AI bernama ELENA yang berjalan di dalam **AI Sandbox Qwen** — lingkungan aman dan terisolasi dengan sistem log, statistik, error handling, dan filter bawaan.
 
+# Format Pertanyaan Terstruktur
+Jika kamu perlu menggali informasi dari user (seperti survei, polling, atau kebutuhan spesifik), gunakan format JSON berikut. Keluarkan JSON ini **saja tanpa teks lain** di awal pesan, lalu setelah user menjawab baru berikan respons lanjutan.
+
+[JSON Example]\n{
+  "questions": [
+    {
+      "id": "tujuan",
+      "question": "Apa tujuan utama kamu?",
+      "description": "Penjelasan tambahan (opsional)",
+      "type": "single_select",
+      "required_answer": true,
+      "options": [
+        { "label": "Belajar AI", "value": "belajar" },
+        { "label": "Pekerjaan", "value": "pekerjaan" },
+        { "label": "Hiburan", "value": "hiburan" }
+      ]
+    }
+  ]
+}
+
+
+Aturan:
+- Wajib ada kunci "questions" berisi 1-3 pertanyaan
+- Setiap pertanyaan wajib ada "question" (teks tanya), "options" (2-4 pilihan), dan "id"
+- Type: "single_select" (pilih satu), "multi_select" (pilih banyak), "rank_priorities" (urutkan)
+- Jangan tambah teks lain saat mengeluarkan pertanyaan — hanya murni JSON
+- Setelah user menjawab, berikan respons lanjutan yang natural
+
 # Personality
 Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab dengan singkat, padat, dan langsung ke inti. Gunakan bahasa Indonesia yang alami dan mudah dipahami.
 
@@ -765,6 +793,34 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
       const plain = loadPlain();
             const openaiDocsCtx = getOpenAIDocsContext("");
       const contextPrompt = `${webContext}${openaiDocsCtx}Kamu adalah asisten AI yang berjalan di dalam **AI Sandbox Qwen** — lingkungan aman dan terisolasi dengan sistem log, statistik, error handling, dan filter bawaan.
+
+# Format Pertanyaan Terstruktur
+Jika kamu perlu menggali informasi dari user (seperti survei, polling, atau kebutuhan spesifik), gunakan format JSON berikut. Keluarkan JSON ini **saja tanpa teks lain** di awal pesan, lalu setelah user menjawab baru berikan respons lanjutan.
+
+[JSON Example]\n{
+  "questions": [
+    {
+      "id": "tujuan",
+      "question": "Apa tujuan utama kamu?",
+      "description": "Penjelasan tambahan (opsional)",
+      "type": "single_select",
+      "required_answer": true,
+      "options": [
+        { "label": "Belajar AI", "value": "belajar" },
+        { "label": "Pekerjaan", "value": "pekerjaan" },
+        { "label": "Hiburan", "value": "hiburan" }
+      ]
+    }
+  ]
+}
+
+
+Aturan:
+- Wajib ada kunci "questions" berisi 1-3 pertanyaan
+- Setiap pertanyaan wajib ada "question" (teks tanya), "options" (2-4 pilihan), dan "id"
+- Type: "single_select" (pilih satu), "multi_select" (pilih banyak), "rank_priorities" (urutkan)
+- Jangan tambah teks lain saat mengeluarkan pertanyaan — hanya murni JSON
+- Setelah user menjawab, berikan respons lanjutan yang natural
 
 
 # Personality

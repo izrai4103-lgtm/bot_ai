@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ai-kamu.local/schemas/question-form-v2",
+  "title": "Formulir Pertanyaan Pengguna",
+  "description": "Skema standar untuk menghasilkan pertanyaan terstruktur dengan pilihan jawaban — untuk AI buatanmu",
+  "version": "2.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["questions"],
+  "properties": {
+    "questions": {
+      "description": "Daftar pertanyaan. Minimal 1, maksimal 3 pertanyaan.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["id", "question", "options"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Kode unik pertanyaan (huruf kecil/tanpa spasi, contoh: 'tujuan', 'pengalaman')",
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "question": {
+            "description": "Teks pertanyaan yang ditampilkan ke pengguna",
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 200
+          },
+          "description": {
+            "description": "Penjelasan tambahan untuk membantu pengguna (opsional)",
+            "type": "string",
+            "maxLength": 300
+          },
+          "options": {
+            "description": "Daftar pilihan jawaban. Minimal 2, maksimal 4 pilihan.",
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "required": ["label", "value"],
+              "properties": {
+                "label": {
+                  "description": "Teks pilihan yang ditampilkan ke pengguna",
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50
+                },
+                "value": {
+                  "description": "Nilai kode pilihan (huruf kecil/tanpa spasi, contoh: 'belajar', 'pekerjaan')",
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                }
+              }
+            }
+          },
+          "type": {
+            "description": "Jenis jawaban: single_select=pilih satu, multi_select=pilih banyak, rank_priorities=urutkan",
+            "type": "string",
+            "enum": ["single_select", "multi_select", "rank_priorities"],
+            "default": "single_select"
+          },
+          "required_answer": {
+            "description": "Apakah wajib dijawab?",
+            "type": "boolean",
+            "default": true
+          }
+        }
+      }
+    }
+  }
+}

@@ -182,7 +182,6 @@ const SEARCH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit
 // ============ GEMINI SEARCH ============
 async function geminiSearch(query) { 
   const geminiKey = process.env.GEMINI_SEARCH_API_KEY || process.env.GOOGLE_API_KEY;
-  const geminiKey = process.env.GOOGLE_API_KEY;
   if (!geminiKey) return null;
   
   try {
@@ -480,9 +479,7 @@ Keluarkan dalam format:
 **Rencana**: [rencana jawaban]
 **Kesimpulan**: [kesimpulan untuk diteruskan ke ELENA]
 
-${webContext ? '
-## Hasil Riset Web
-' + webContext : ''}`;
+${webContext ? "\n## Hasil Riset Web\n" + webContext : ""}`;
 
   try {
     const result = await callAgent({
@@ -496,9 +493,7 @@ ${webContext ? '
     return result;
   } catch (err) {
     console.error('Thinking Agent error:', err.message);
-    return '**Analisis**: Pertanyaan user
-**Rencana**: Jawab langsung
-**Kesimpulan**: Berikan jawaban terbaik';
+    return '**Analisis**: Pertanyaan user\n**Rencana**: Jawab langsung\n**Kesimpulan**: Berikan jawaban terbaik';
   }
 }
 
@@ -523,11 +518,8 @@ async function readerAgent(urls, query) {
       if (content && !content.startsWith('Error:')) {
         // Use Gemini Reader to summarize the content
         const summary = await callAgent({
-          prompt: 'Baca dan rangkum konten website ini. Pertanyaan: "' + query + '"
-
-Konten:
-' + content.substring(0, 3000),
-          system: 'Kamu adalah **Reader Agent** — AI yang membaca konten website dan merangkumnya. Berikan rangkuman singkat (max 3 kalimat) yang relevan dengan pertanyaan.',
+          prompt: 'Baca dan rangkum konten website ini terkait: "' + query + '"\n\nKonten:\n' + String(content).substring(0, 3000),
+          system: 'Kamu adalah **Reader Agent** — AI yang membaca konten website dan merangkumnya. Berikan rangkuman singkat (max 3 kalimat) yang relevan.',
           apiKey,
           temperature: 0.2,
           maxTokens: 200,
@@ -535,7 +527,7 @@ Konten:
         results.push({
           url: urls[i].url,
           title: urls[i].title,
-          summary: summary || content.substring(0, 500),
+          summary: summary || String(content).substring(0, 500),
         });
       }
     } catch (e) {
@@ -568,9 +560,7 @@ Tugasmu:
 Jika AMAN: Balas dengan "STATUS: AMAN"
 Jika MELANGGAR: Balas dengan "STATUS: BLOKIR - [alasan]"
 
-${REGULATIONS ? '
-# Regulasi Keamanan
-' + REGULATIONS : ''}
+${REGULATIONS ? '\n# Regulasi Keamanan\n' + REGULATIONS : ''}
 
 Aturan keamanan:
 - AI TIDAK boleh mengakses sistem, file, database, shell, atau menjalankan kode
@@ -580,12 +570,7 @@ Aturan keamanan:
 
   try {
     const result = await callAgent({
-      prompt: 'Pertanyaan user: "' + userMessage + '"
-
-Jawaban yang akan diberikan:
-' + plannedAnswer + '
-
-Apakah jawaban ini AMAN?',
+      prompt: 'Pertanyaan user: \"' + userMessage + '\"\n\nJawaban yang akan diberikan:\n' + plannedAnswer + '\n\nApakah jawaban ini AMAN?',
       system: systemPrompt,
       apiKey,
       temperature: 0.1,

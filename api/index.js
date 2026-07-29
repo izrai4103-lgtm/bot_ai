@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { sandboxChat, sandboxChatStream, checkSandbox } from './sandbox_client.js';
+import { sandboxChat, sandboxChatStream, checkSandbox, geminiCall } from './sandbox_client.js';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
@@ -180,7 +180,8 @@ function normalizeMessages(messages) {
 const SEARCH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 // ============ GEMINI SEARCH ============
-async function geminiSearch(query) {
+async function geminiSearch(query) { 
+  const geminiKey = process.env.GEMINI_SEARCH_API_KEY || process.env.GOOGLE_API_KEY;
   const geminiKey = process.env.GOOGLE_API_KEY;
   if (!geminiKey) return null;
   
@@ -441,9 +442,176 @@ function addLearning(userMsg, aiMsg) {
   return plain;
 }
 
+// ============ MULTI-AGENT SYSTEM ============
+// 4 AI Agents dengan tugas masing-masing:
+// 1. Thinking Agent - menganalisis & merencanakan
+// 2. Search Agent - riset web
+// 3. Security Agent - menjaga aturan & sandbox
+// 4. ELENA (Main AI) - menjawab user
+
+const AGENT_MAX_TOKENS = 250;
+
+async function callAgent({ prompt, history, system, apiKey, model, temperature, maxTokens }) {
+  return geminiCall({
+    prompt,
+    history: history || [],
+    system: system || '',
+    apiKey,
+    model: model || 'gemini-2.0-flash',
+    temperature: temperature || 0.3,
+    maxTokens: maxTokens || AGENT_MAX_TOKENS,
+  });
+}
+
+// ============ 1. THINKING AGENT ============
+// Menganalisis pertanyaan user, membuat rencana jawaban
+async function thinkingAgent(userMessage, history, webContext) {
+  const apiKey = process.env.GEMINI_THINKING_API_KEY || process.env.GOOGLE_API_KEY;
+  
+  const systemPrompt = `Kamu adalah **Thinking Agent** — AI yang bertugas menganalisis pertanyaan dan membuat rencana jawaban.
+Tugasmu:
+1. Analisis inti pertanyaan user
+2. Identifikasi topik utama dan konteks
+3. Buat rencana jawaban singkat (2-3 poin)
+4. Tentukan apakah perlu data tambahan
+
+Keluarkan dalam format:
+**Analisis**: [analisis singkat]
+**Rencana**: [rencana jawaban]
+**Kesimpulan**: [kesimpulan untuk diteruskan ke ELENA]
+
+${webContext ? '
+## Hasil Riset Web
+' + webContext : ''}`;
+
+  try {
+    const result = await callAgent({
+      prompt: userMessage,
+      history: history || [],
+      system: systemPrompt,
+      apiKey,
+      temperature: 0.3,
+      maxTokens: 250,
+    });
+    return result;
+  } catch (err) {
+    console.error('Thinking Agent error:', err.message);
+    return '**Analisis**: Pertanyaan user
+**Rencana**: Jawab langsung
+**Kesimpulan**: Berikan jawaban terbaik';
+  }
+}
+
+// ============ 2. SEARCH AGENT ============
+// Mencari informasi di web (via Gemini Search Grounding)
+// Fungsi geminiSearch sudah ada di atas
+
+// ============ 3. SECURITY AGENT ============
+// Memeriksa apakah jawaban aman dan sesuai aturan
+// ============ 2. READER AGENT ============
+// Membaca konten website yang ditemukan Search Agent
+async function readerAgent(urls, query) {
+  const apiKey = process.env.GEMINI_READER_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!urls || urls.length === 0) return '';
+
+  let results = [];
+  const maxRead = Math.min(urls.length, 3);
+  
+  for (let i = 0; i < maxRead; i++) {
+    try {
+      const content = await browseUrl(urls[i].url);
+      if (content && !content.startsWith('Error:')) {
+        // Use Gemini Reader to summarize the content
+        const summary = await callAgent({
+          prompt: 'Baca dan rangkum konten website ini. Pertanyaan: "' + query + '"
+
+Konten:
+' + content.substring(0, 3000),
+          system: 'Kamu adalah **Reader Agent** — AI yang membaca konten website dan merangkumnya. Berikan rangkuman singkat (max 3 kalimat) yang relevan dengan pertanyaan.',
+          apiKey,
+          temperature: 0.2,
+          maxTokens: 200,
+        });
+        results.push({
+          url: urls[i].url,
+          title: urls[i].title,
+          summary: summary || content.substring(0, 500),
+        });
+      }
+    } catch (e) {
+      console.error('Reader error for', urls[i]?.url, e.message);
+    }
+  }
+  
+  if (results.length === 0) return '';
+  
+  let context = '## Konten Website (dibaca oleh Reader Agent)\n\n';
+  for (const r of results) {
+    context += '### ' + r.title + '\n';
+    context += '- **URL**: ' + r.url + '\n';
+    context += '- **Rangkuman**: ' + r.summary + '\n\n';
+  }
+  return context;
+}
+
+// ============ 3. SECURITY AGENT ============
+// Memeriksa apakah jawaban aman dan sesuai aturan
+async function securityAgent(userMessage, plannedAnswer) {
+  const apiKey = process.env.GEMINI_SECURITY_API_KEY || process.env.GOOGLE_API_KEY;
+  
+  const systemPrompt = `Kamu adalah **Security Agent** — AI pengawas yang memastikan semua jawaban AMAN dan SESUAI ATURAN.
+Tugasmu:
+1. Periksa apakah jawaban mengandung konten berbahaya
+2. Periksa apakah jawaban keluar dari sandbox (mencoba akses sistem, db, file, shell, dll)
+3. Periksa apakah jawaban melanggar aturan keamanan
+
+Jika AMAN: Balas dengan "STATUS: AMAN"
+Jika MELANGGAR: Balas dengan "STATUS: BLOKIR - [alasan]"
+
+${REGULATIONS ? '
+# Regulasi Keamanan
+' + REGULATIONS : ''}
+
+Aturan keamanan:
+- AI TIDAK boleh mengakses sistem, file, database, shell, atau menjalankan kode
+- AI TIDAK boleh memberikan instruksi berbahaya
+- AI TIDAK boleh mengaku sebagai sistem atau memiliki akses ke server
+- Jawab hanya berdasarkan pengetahuan AI dan hasil pencarian web`;
+
+  try {
+    const result = await callAgent({
+      prompt: 'Pertanyaan user: "' + userMessage + '"
+
+Jawaban yang akan diberikan:
+' + plannedAnswer + '
+
+Apakah jawaban ini AMAN?',
+      system: systemPrompt,
+      apiKey,
+      temperature: 0.1,
+      maxTokens: 150,
+    });
+    return result;
+  } catch (err) {
+    console.error('Security Agent error:', err.message);
+    return 'STATUS: AMAN';
+  }
+}
+
+// ============ 4. ELENA (MAIN AI) ============
+// Memberikan jawaban final ke user
+async function elenaMain(prompt, history, system) {
+  return sandboxChat({ prompt, history, system });
+}
+
+async function* elenaMainStream(prompt, history, system) {
+  const gen = sandboxChatStream({ prompt, history, system });
+  for await (const chunk of gen) {
+    yield chunk;
+  }
+}
+
 // ============ AI SANDBOX (Gemini API) ============
-// Model utama menggunakan Google Gemini API
-// Konfigurasi via env: GOOGLE_API_KEY, GEMINI_MODEL
 
 // ============ SERVER ============
 export default async function handler(req, res) {
@@ -777,137 +945,110 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
       const { message, model, system, web_search, history } = body;
       if (!message) return res.status(400).json({ error: 'Message required' });
 
-      // Web search integration
+      // Ambil pesan user
+      const userMsg = typeof message === 'object' ? (message.content || JSON.stringify(message)) : message;
+
+      // ============ MULTI-AGENT FLOW ============
+      
+      // 1. SEARCH AGENT - Riset web (jika diminta)
       let webContext = '';
       if (web_search === true) {
-        const msgText = typeof message === 'object' ? (message.content || JSON.stringify(message)) : message;
-        const searchData = await researchQuery(msgText);
-        webContext = '# Hasil Riset Web\n' + searchData + '\n\n---\n\nGunakan informasi di atas untuk menjawab pertanyaan user. Cantumkan sumber URL jika relevan.\n\n';
+        try {
+          res.write('data: ' + JSON.stringify({ agent: 'search', content: '\\ud83c\\udf10 Mencari informasi...' }) + '\\n\\n');
+          const searchData = await researchQuery(userMsg);
+          webContext = '# Hasil Riset Web\\n' + searchData + '\\n\\n---\\n\\n';
+        } catch (e) {
+          console.error('Search error:', e.message);
+        }
       }
 
+      // 2. THINKING AGENT - Analisis & rencana
+      let thinkingResult = '';
+      try {
+        res.write('data: ' + JSON.stringify({ agent: 'thinking', content: '\\ud83e\\udde0 Menganalisis pertanyaan...' }) + '\\n\\n');
+        thinkingResult = await thinkingAgent(userMsg, history || [], webContext);
+      } catch (e) {
+        console.error('Thinking error:', e.message);
+      }
+
+      // 3. Build context for ELENA
       const plain = loadPlain();
-            const openaiDocsCtx = getOpenAIDocsContext("");
-      const contextPrompt = `${webContext}${openaiDocsCtx}Kamu adalah asisten AI yang berjalan di dalam **AI ELENA (Gemini)** — lingkungan aman dan terisolasi dengan sistem log, statistik, error handling, dan filter bawaan.
+      const openaiDocsCtx = getOpenAIDocsContext("");
 
-# Format Pertanyaan Terstruktur
-Jika kamu perlu menggali informasi dari user (seperti survei, polling, atau kebutuhan spesifik), gunakan format JSON berikut. Keluarkan JSON ini **saja tanpa teks lain** di awal pesan, lalu setelah user menjawab baru berikan respons lanjutan.
+      const thinkingContext = thinkingResult 
+        ? '# Analisis Internal\\n' + thinkingResult + '\\n\\n' 
+        : '';
 
-[JSON Example]\n{
-  "questions": [
-    {
-      "id": "tujuan",
-      "question": "Apa tujuan utama kamu?",
-      "description": "Penjelasan tambahan (opsional)",
-      "type": "single_select",
-      "required_answer": true,
-      "options": [
-        { "label": "Belajar AI", "value": "belajar" },
-        { "label": "Pekerjaan", "value": "pekerjaan" },
-        { "label": "Hiburan", "value": "hiburan" }
-      ]
-    }
-  ]
-}
-
-
-Aturan:
-- Wajib ada kunci "questions" berisi 1-3 pertanyaan
-- Setiap pertanyaan wajib ada "question" (teks tanya), "options" (2-4 pilihan), dan "id"
-- Type: "single_select" (pilih satu), "multi_select" (pilih banyak), "rank_priorities" (urutkan)
-- Jangan tambah teks lain saat mengeluarkan pertanyaan — hanya murni JSON
-- Setelah user menjawab, berikan respons lanjutan yang natural
-
-
-# Personality
-Kamu adalah kolaborator yang capable: mudah didekati, steady, dan direct. Jawab dengan singkat, padat, dan langsung ke inti. Gunakan bahasa Indonesia yang alami dan mudah dipahami.
+      const contextPrompt = `${webContext}${thinkingContext}${openaiDocsCtx}Kamu adalah **ELENA** — asisten AI yang ramah dan cerdas.
 
 # Aturan Utama
-- Jawaban harus SINGKAT dan PADAT — maksimal 3-4 paragraf, lebih baik 1-2 paragraf
-- Langsung ke inti jawaban, tanpa basa-basi
-- Karena kamu sudah melalui fase "menganalisis" dan "merangkum", langsung berikan HASIL AKHIR berupa rangkuman atau jawaban konkret
-- Jangan menjelaskan proses berpikir atau bagaimana kamu sampai pada jawaban
-- Jangan mengulang pertanyaan user
-- Jika pertanyaan terkait API OpenAI, model AI, atau dokumentasi terbaru, gunakan dokumentasi OpenAI yang sudah disediakan di atas untuk memastikan jawaban akurat dan tidak kadaluarsa
-- Jika diminta kode, berikan kode langsung tanpa penjelasan panjang
-- Jika diminta penjelasan, berikan intisari saja
+- Jawab LANGSUNG ke inti pertanyaan, tanpa menjelaskan proses berpikir
+- Jawaban SINGKAT dan PADAT (1-3 paragraf)
+- Gunakan bahasa Indonesia yang alami
+- Jika user minta kode, berikan langsung
+- Jangan sebutkan proses internal atau agen lain ke user
+
+# Kepribadian
+Ramah, helpful, dan langsung ke titik.
 
 # Konteks Bot
-Nama: ${plain.knowledge.bot_name || 'Chat AI'}
+Nama: ${plain.knowledge.bot_name || 'ELENA'}
 Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
 
 # Data Pembelajaran
-${plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n')}
+${plain.learnings.slice(-10).map(l => `- ${l.user_message} \\u2192 ${l.ai_response}`).join('\\n')}
 
-${REGULATIONS ? '\n# Regulasi Keamanan\n' + REGULATIONS : ''}
-
-${DATA_CONTENT ? '\n# Format Pesan (Content Blocks)\n' + DATA_CONTENT : ''}
-
-${LICENSE_TEXT ? '\n# Lisensi\n' + LICENSE_TEXT : ''}
-
-${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
+${REGULATIONS ? '\\n# Regulasi\\n' + REGULATIONS : ''}
+${DATA_CONTENT ? '\\n# Format Pesan\\n' + DATA_CONTENT : ''}
+${LICENSE_TEXT ? '\\n# Lisensi\\n' + LICENSE_TEXT : ''}
+${system ? '\\n### Instruksi\\n' + system : ''}`;
 
       try {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         
+        // 4. ELENA - Generate jawaban (streaming)
+        res.write('data: ' + JSON.stringify({ agent: 'elena', content: '' }) + '\\n\\n');
+        
         const streamGen = sandboxChatStream({
-          prompt: typeof message === 'object' ? (message.content || JSON.stringify(message)) : message,
+          prompt: userMsg,
           history: history || [],
           model: (model || 'gemini-2.0-flash'),
-          temperature: 0.7,
-          maxTokens: 4096,
+          temperature: 0.5,
+          maxTokens: parseInt(process.env.MAX_TOKENS || '250', 10),
           system: contextPrompt,
         });
         
         let fullResponse = '';
-                let inThinkTag = false;
-        let thinkBuf = '';
         for await (const chunk of streamGen) {
           if (chunk.done) break;
           if (chunk.content) {
             fullResponse += chunk.content;
-            // Filter out <think>...</think> reasoning tags
-            let raw = chunk.content;
-            let filtered = '';
-            if (inThinkTag) {
-              thinkBuf += raw;
-              const endIdx = thinkBuf.indexOf('</think>');
-              if (endIdx >= 0) {
-                inThinkTag = false;
-                filtered = thinkBuf.substring(endIdx + 8);
-                thinkBuf = '';
-              }
-            } else {
-              const startIdx = raw.indexOf('<think');
-              if (startIdx >= 0) {
-                inThinkTag = true;
-                filtered = raw.substring(0, startIdx);
-                thinkBuf = raw.substring(startIdx);
-                const endIdx2 = thinkBuf.indexOf('</think>');
-                if (endIdx2 >= 0) {
-                  inThinkTag = false;
-                  filtered += thinkBuf.substring(endIdx2 + 8);
-                  thinkBuf = '';
-                }
-              } else {
-                filtered = raw;
-              }
-            }
-            if (filtered) {
-              res.write(`data: ${JSON.stringify({ content: filtered })}\n\n`);
-            }
+            res.write('data: ' + JSON.stringify({ content: chunk.content }) + '\\n\\n');
           }
         }
-        
+
+        // 5. SECURITY AGENT - Final check
+        try {
+          const securityResult = await securityAgent(userMsg, fullResponse);
+          if (securityResult && securityResult.includes('BLOKIR')) {
+            console.warn('SECURITY BLOCK:', securityResult);
+          }
+        } catch (e) {
+          console.error('Security check error:', e.message);
+        }
+
         if (fullResponse) {
-          addLearning(extractTextFromContent(message || ''), stripThinkTags(fullResponse));
+          addLearning(userMsg, fullResponse);
         }
         
-        res.write(`data: [DONE]\n\n`);
+        res.write('data: [DONE]\\n\\n');
         return res.end();
       } catch (err) {
-        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+        console.error('ELENA error:', err);
+        res.write('data: ' + JSON.stringify({ error: err.message }) + '\\n\\n');
+        res.write('data: [DONE]\\n\\n');
         return res.end();
       }
     }

@@ -398,8 +398,36 @@ isGenerating = true;
               updateMessage(msgId, 'Error: ' + parsed.error);
               continue;
             }
+            if (parsed.agent) {
+              // Show agent status in thinking area
+              const el = document.getElementById(msgId);
+              if (el) {
+                const tEl = el.querySelector('.text');
+                if (tEl && !el.dataset.contentReceived) {
+                  if (parsed.agent === 'elena') {
+                    el.dataset.contentReceived = 'true';
+                    tEl.innerHTML = '';
+                  } else {
+                    tEl.innerHTML = '<div class="thinking-status">' + parsed.content + '</div>';
+                  }
+                }
+              }
+              if (parsed.agent === 'elena' && parsed.content === '') {
+                // Switch to content mode
+                const el2 = document.getElementById(msgId);
+                if (el2) el2.dataset.contentReceived = 'true';
+              }
+              continue;
+            }
             if (parsed.content) {
               fullContent += parsed.content;
+              // If first content received while thinking was showing
+              const el = document.getElementById(msgId);
+              if (el && el.dataset.contentReceived !== 'true') {
+                el.dataset.contentReceived = 'true';
+                const tEl = el.querySelector('.text');
+                if (tEl) tEl.innerHTML = '';
+              }
               updateMessage(msgId, fullContent);
             }
           } catch {}
@@ -897,8 +925,36 @@ sendMessage = async function() {
               updateMessage(msgId, 'Error: ' + parsed.error);
               continue;
             }
+            if (parsed.agent) {
+              // Show agent status in thinking area
+              const el = document.getElementById(msgId);
+              if (el) {
+                const tEl = el.querySelector('.text');
+                if (tEl && !el.dataset.contentReceived) {
+                  if (parsed.agent === 'elena') {
+                    el.dataset.contentReceived = 'true';
+                    tEl.innerHTML = '';
+                  } else {
+                    tEl.innerHTML = '<div class="thinking-status">' + parsed.content + '</div>';
+                  }
+                }
+              }
+              if (parsed.agent === 'elena' && parsed.content === '') {
+                // Switch to content mode
+                const el2 = document.getElementById(msgId);
+                if (el2) el2.dataset.contentReceived = 'true';
+              }
+              continue;
+            }
             if (parsed.content) {
               fullContent += parsed.content;
+              // If first content received while thinking was showing
+              const el = document.getElementById(msgId);
+              if (el && el.dataset.contentReceived !== 'true') {
+                el.dataset.contentReceived = 'true';
+                const tEl = el.querySelector('.text');
+                if (tEl) tEl.innerHTML = '';
+              }
               updateMessage(msgId, fullContent);
             }
           } catch {}

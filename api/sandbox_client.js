@@ -1,10 +1,11 @@
 /**
  * AI Sandbox Client — Node.js implementation for ELENA AI.
  * Menggunakan Google Gemini API sebagai model utama.
- * Support: chat & streaming, fallback models, stats.
+ * Support: multi-agent (thinking, search, security, main), chat & streaming.
  */
 
 const GEMINI_API_KEY = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+const DEFAULT_MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '200', 10);
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -39,21 +40,24 @@ async function geminiFetch(url, body, timeout = 60000) {
   return resp;
 }
 
-// ============ CHAT (non-streaming) ============
-export async function sandboxChat({ prompt, history, model, temperature, maxTokens, system }) {
+// ============ GENERIC GEMINI CALL (any API key) ============
+export async function geminiCall({ prompt, history, system, apiKey, model, temperature, maxTokens }) {
+  const key = apiKey || GEMINI_API_KEY;
+  const m = model || GEMINI_MODEL;
+  
   stats.total_requests++;
   stats.last_request = Date.now();
 
   const { contents, systemInstruction } = buildGeminiMessages({ prompt, history, system });
-  const url = `${GEMINI_API_BASE}/${model || GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const url = `${GEMINI_API_BASE}/${m}:generateContent?key=${key}`;
 
   try {
     const resp = await geminiFetch(url, {
       contents,
       systemInstruction,
       generationConfig: {
-        temperature: temperature || 0.7,
-        maxOutputTokens: maxTokens || 4096,
+        temperature: temperature || 0.5,
+        maxOutputTokens: maxTokens || DEFAULT_MAX_TOKENS,
       },
     });
     const data = await resp.json();
@@ -66,6 +70,11 @@ export async function sandboxChat({ prompt, history, model, temperature, maxToke
     stats.errors++;
     throw err;
   }
+}
+
+// ============ CHAT (non-streaming) ============
+export async function sandboxChat({ prompt, history, model, temperature, maxTokens, system }) {
+  return geminiCall({ prompt, history, system, model, temperature, maxTokens });
 }
 
 // ============ CHAT STREAM ============
@@ -82,7 +91,7 @@ export async function* sandboxChatStream({ prompt, history, model, temperature, 
       systemInstruction,
       generationConfig: {
         temperature: temperature || 0.7,
-        maxOutputTokens: maxTokens || 4096,
+        maxOutputTokens: maxTokens || DEFAULT_MAX_TOKENS,
       },
     }, 120000);
 
@@ -122,4 +131,4 @@ export async function checkSandbox() {
 }
 
 export { stats };
-export default { sandboxChat, sandboxChatStream, checkSandbox };
+export default { sandboxChat, sandboxChatStream, checkSandbox, geminiCall };

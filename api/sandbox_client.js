@@ -1,262 +1,125 @@
 /**
- * AI Sandbox Client — Node.js implementation of AISandbox pattern.
- * Memanggil Groq API langsung tanpa perlu Python server.
- * Fungsi: logging, stats, error handling, think tag filtering.
+ * AI Sandbox Client — Node.js implementation for ELENA AI.
+ * Menggunakan Google Gemini API sebagai model utama.
+ * Support: chat & streaming, fallback models, stats.
  */
 
-const SANDBOX_URL = process.env.SANDBOX_URL || null;
-const FALLBACK_ENABLED = process.env.SANDBOX_FALLBACK !== 'false';
-
-// Ollama local model support
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:14b';
-const USE_LOCAL = process.env.USE_LOCAL_MODEL === 'true';
-
-// Fallback models (hanya dipakai jika Groq cloud di Vercel)
-// Untuk local: USE_LOCAL_MODEL=true pakai Ollama langsung
-const FALLBACK_MODELS = [
-  'qwen/qwen3.6-27b',
-  'llama-3.1-8b-instant',
-  'llama-3.3-70b-versatile',
-];
-
-let groqInstance = null;
-let _currentModelIdx = 0;
-
-// ============ OLLAMA LOCAL ============
-async function ollamaChat({ prompt, history, system, temperature, maxTokens }) {
-  const messages = [];
-  if (system) messages.push({ role: 'system', content: system });
-  if (history) messages.push(...history);
-  messages.push({ role: 'user', content: prompt });
-  
-  const resp = await fetch(OLLAMA_URL + '/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      messages,
-      stream: false,
-      options: { temperature: temperature || 0.7, num_predict: maxTokens || 4096 }
-    }),
-    signal: AbortSignal.timeout(60000),
-  });
-  if (!resp.ok) throw new Error('Ollama HTTP ' + resp.status);
-  const data = await resp.json();
-  return data.message?.content || '';
-}
-
-async function* ollamaChatStream({ prompt, history, system, temperature, maxTokens }) {
-  const messages = [];
-  if (system) messages.push({ role: 'system', content: system });
-  if (history) messages.push(...history);
-  messages.push({ role: 'user', content: prompt });
-  
-  const resp = await fetch(OLLAMA_URL + '/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      messages,
-      stream: true,
-      options: { temperature: temperature || 0.7, num_predict: maxTokens || 4096 }
-    }),
-    signal: AbortSignal.timeout(120000),
-  });
-  if (!resp.ok) throw new Error('Ollama HTTP ' + resp.status);
-  
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const data = JSON.parse(line);
-        if (data.message?.content) yield { content: data.message.content, done: false };
-        if (data.done) { yield { content: '', done: true }; return; }
-      } catch {}
-    }
-  }
-  yield { content: '', done: true };
-}
-
-// ============ GROQ CLOUD ============
-async function getGroq() {
-  if (groqInstance) return groqInstance;
-  const { default: Groq } = await import('groq-sdk');
-  groqInstance = new Groq({ apiKey: process.env.GROQ_API_KEY });
-  return groqInstance;
-}
+const GEMINI_API_KEY = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // Stats
 const stats = { total_requests: 0, total_tokens: 0, errors: 0, last_request: null };
 
-/**
- * Chat non-streaming via Sandbox (Groq SDK langsung).
- */
-export async function sandboxChat({ prompt, history, model, temperature, maxTokens, system }) {
-  // === USE LOCAL OLLAMA ===
-  if (USE_LOCAL) {
-    return await ollamaChat({ prompt, history, system, temperature, maxTokens });
+function buildGeminiMessages({ prompt, history, system }) {
+  const contents = [];
+  if (history) {
+    for (const msg of history) {
+      if (msg.role === 'assistant') contents.push({ role: 'model', parts: [{ text: msg.content }] });
+      else if (msg.role === 'user') contents.push({ role: 'user', parts: [{ text: msg.content }] });
+    }
   }
+  contents.push({ role: 'user', parts: [{ text: prompt }] });
   
-  // Try external Python sandbox if URL configured
-  if (SANDBOX_URL) {
-    try {
-      const resp = await fetch(`${SANDBOX_URL}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, history, model, temperature, maxTokens, system }),
-        signal: AbortSignal.timeout(30000),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        return data.content;
-      }
-    } catch (err) {
-      console.error('Sandbox server error:', err.message);
-      if (!FALLBACK_ENABLED) throw err;
-    }
-  }
-
-  // === DIRECT GROQ (Sandbox mode) ===
-  const client = await getGroq();
-  stats.total_requests++;
-  stats.last_request = Date.now();
-
-  const messages = [];
-  if (system) messages.push({ role: 'system', content: system });
-  if (history) messages.push(...history);
-  messages.push({ role: 'user', content: prompt });
-
-  let lastErr;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const completion = await client.chat.completions.create({
-        model: FALLBACK_MODELS[_currentModelIdx % FALLBACK_MODELS.length],
-        messages,
-        temperature: temperature || 0.7,
-        max_tokens: maxTokens || 4096,
-        stream: false,
-      });
-      const text = completion.choices[0]?.message?.content || '';
-      stats.total_tokens += completion.usage?.total_tokens || 0;
-      return text;
-    } catch (err) {
-      lastErr = err;
-      stats.errors++;
-      // If rate limited, try next model
-      if (err.status === 429 || (err.message && err.message.includes('rate_limit'))) {
-        _currentModelIdx = (_currentModelIdx + 1) % FALLBACK_MODELS.length;
-        console.warn('Rate limited on model, switching to:', FALLBACK_MODELS[_currentModelIdx]);
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw lastErr;
+  const systemInstruction = system ? { parts: [{ text: system }] } : undefined;
+  return { contents, systemInstruction };
 }
 
-/**
- * Chat streaming via Sandbox (Groq SDK langsung).
- */
-export async function* sandboxChatStream({ prompt, history, model, temperature, maxTokens, system }) {
-  // === USE LOCAL OLLAMA ===
-  if (USE_LOCAL) {
-    yield* await ollamaChatStream({ prompt, history, system, temperature, maxTokens });
-    return;
+async function geminiFetch(url, body, timeout = 60000) {
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeout),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '');
+    throw new Error(`Gemini HTTP ${resp.status}: ${errText.slice(0, 200)}`);
   }
-  
-  // Try external Python sandbox if URL configured
-  if (SANDBOX_URL) {
-    try {
-      const resp = await fetch(`${SANDBOX_URL}/chat/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, history, model, temperature, maxTokens, system }),
-        signal: AbortSignal.timeout(60000),
-      });
-      if (resp.ok) {
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) { yield { content: '', done: true }; return; }
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (data.content) yield { content: data.content, done: false };
-                if (data.error) yield { content: `\n\n[Sandbox Error: ${data.error}]`, done: false };
-              } catch {}
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Sandbox stream error:', err.message);
-      if (!FALLBACK_ENABLED) throw err;
-    }
-  }
+  return resp;
+}
 
-  // === DIRECT GROQ STREAM (Sandbox mode) ===
-  const client = await getGroq();
+// ============ CHAT (non-streaming) ============
+export async function sandboxChat({ prompt, history, model, temperature, maxTokens, system }) {
   stats.total_requests++;
   stats.last_request = Date.now();
 
-  const messages = [];
-  if (system) messages.push({ role: 'system', content: system });
-  if (history) messages.push(...history);
-  messages.push({ role: 'user', content: prompt });
+  const { contents, systemInstruction } = buildGeminiMessages({ prompt, history, system });
+  const url = `${GEMINI_API_BASE}/${model || GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
-  let lastErr;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const stream = await client.chat.completions.create({
-        model: FALLBACK_MODELS[_currentModelIdx % FALLBACK_MODELS.length],
-        messages,
+  try {
+    const resp = await geminiFetch(url, {
+      contents,
+      systemInstruction,
+      generationConfig: {
         temperature: temperature || 0.7,
-        max_tokens: maxTokens || 4096,
-        stream: true,
-      });
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || '';
-        if (content) yield { content, done: false };
-      }
-      yield { content: '', done: true };
-      return;
-    } catch (err) {
-      lastErr = err;
-      stats.errors++;
-      if (err.status === 429 || (err.message && err.message.includes('rate_limit'))) {
-        _currentModelIdx = (_currentModelIdx + 1) % FALLBACK_MODELS.length;
-        console.warn('Rate limited on stream model, switching to:', FALLBACK_MODELS[_currentModelIdx]);
-        continue;
-      }
-      throw err;
+        maxOutputTokens: maxTokens || 4096,
+      },
+    });
+    const data = await resp.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (data.usageMetadata) {
+      stats.total_tokens += (data.usageMetadata.promptTokenCount || 0) + (data.usageMetadata.candidatesTokenCount || 0);
     }
+    return text;
+  } catch (err) {
+    stats.errors++;
+    throw err;
   }
-  // All models exhausted
-  yield { content: '\n\n⚠️ Semua model AI sedang kehabisan kuota harian. Tunggu reset (biasanya tengah malam UTC) atau upgrade akun Groq.', done: false };
-  yield { content: '', done: true };
+}
+
+// ============ CHAT STREAM ============
+export async function* sandboxChatStream({ prompt, history, model, temperature, maxTokens, system }) {
+  stats.total_requests++;
+  stats.last_request = Date.now();
+
+  const { contents, systemInstruction } = buildGeminiMessages({ prompt, history, system });
+  const url = `${GEMINI_API_BASE}/${model || GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
+
+  try {
+    const resp = await geminiFetch(url, {
+      contents,
+      systemInstruction,
+      generationConfig: {
+        temperature: temperature || 0.7,
+        maxOutputTokens: maxTokens || 4096,
+      },
+    }, 120000);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim() || line.startsWith(':')) continue;
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (text) yield { content: text, done: false };
+          } catch {}
+        }
+      }
+    }
+    yield { content: '', done: true };
+  } catch (err) {
+    stats.errors++;
+    yield { content: `\n\n⚠️ Error AI: ${err.message}`, done: false };
+    yield { content: '', done: true };
+  }
 }
 
 export async function checkSandbox() {
-  if (!SANDBOX_URL) return false;
-  try {
-    const resp = await fetch(`${SANDBOX_URL}/health`, { signal: AbortSignal.timeout(3000) });
-    return resp.ok;
-  } catch { return false; }
+  return !!GEMINI_API_KEY;
 }
 
+export { stats };
 export default { sandboxChat, sandboxChatStream, checkSandbox };

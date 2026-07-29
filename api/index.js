@@ -441,14 +441,9 @@ function addLearning(userMsg, aiMsg) {
   return plain;
 }
 
-// ============ AI SANDBOX (Qwen via Python Sandbox + Fallback Groq SDK) ============
-let groqFallback;
-async function getGroqFallback() {
-  if (groqFallback) return groqFallback;
-  const { default: Groq } = await import('groq-sdk');
-  groqFallback = new Groq({ apiKey: process.env.GROQ_API_KEY });
-  return groqFallback;
-}
+// ============ AI SANDBOX (Gemini API) ============
+// Model utama menggunakan Google Gemini API
+// Konfigurasi via env: GOOGLE_API_KEY, GEMINI_MODEL
 
 // ============ SERVER ============
 export default async function handler(req, res) {
@@ -483,7 +478,7 @@ export default async function handler(req, res) {
         name: 'Bot AI',
         version: '1.0.0',
         default_locale: 'id-ID',
-        default_models: 'qwen/qwen3.6-27b',
+        default_models: 'gemini-2.0-flash',
         default_prompt_suggestions: [
           { content: 'Apa kabar?', title: ['Sapa', 'Sapa bot'] },
           { content: 'Jelaskan AI dalam bahasa sederhana', title: ['Edukasi', 'Belajar AI'] },
@@ -515,7 +510,7 @@ export default async function handler(req, res) {
     // GET /api/v1/models or /api/models
     if (path === '/api/v1/models' || path === '/api/models') {
       const models = [
-        { id: 'qwen/qwen3.6-27b', name: 'Qwen 3.6 27B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } }
+        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', owned_by: 'google', info: { capabilities: { vision: false, chat: true } } }
       ];
       return res.json({ data: models });
     }
@@ -648,7 +643,7 @@ export default async function handler(req, res) {
     if (path === '/openai/models') {
       return res.json({
         data: [
-          { id: 'qwen/qwen3.6-27b', object: 'model', owned_by: 'groq' }
+          { id: 'gemini-2.0-flash', object: 'model', owned_by: 'google' }
         ]
       });
     }
@@ -656,7 +651,7 @@ export default async function handler(req, res) {
     // POST /openai/chat/completions - Chat completion via Groq
     // POST /api/chat/completions
     if ((path === '/openai/chat/completions' || path === '/api/chat/completions' || path === '/api/v1/chat/completions') && method === 'POST') {
-      const model = body.model || 'qwen/qwen3.6-27b';
+      const model = body.model || 'gemini-2.0-flash';
       const messages = normalizeMessages(body.messages || []);
       const stream = body.stream !== false;
 
@@ -680,7 +675,7 @@ export default async function handler(req, res) {
       try { refreshOpenAIDocs(); } catch(e) {}
 
             const openaiDocsCtx = getOpenAIDocsContext("");
-      const systemMsg = `${openaiWebContext}${openaiDocsCtx}Kamu adalah asisten AI bernama ELENA yang berjalan di dalam **AI Sandbox Qwen** — lingkungan aman dan terisolasi dengan sistem log, statistik, error handling, dan filter bawaan.
+      const systemMsg = `${openaiWebContext}${openaiDocsCtx}Kamu adalah asisten AI bernama ELENA yang berjalan di dalam **AI ELENA (Gemini)** — lingkungan aman dan terisolasi dengan sistem log, statistik, error handling, dan filter bawaan.
 
 # Format Pertanyaan Terstruktur
 Jika kamu perlu menggali informasi dari user (seperti survei, polling, atau kebutuhan spesifik), gunakan format JSON berikut. Keluarkan JSON ini **saja tanpa teks lain** di awal pesan, lalu setelah user menjawab baru berikan respons lanjutan.
@@ -774,7 +769,7 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
 
     // ============ OPENAI CONFIG ============
     if (path === '/openai/config') {
-      return res.json({ ENABLE_OPENAI_API: true, OPENAI_API_BASE_URLS: ['https://api.groq.com/openai/v1'], OPENAI_API_KEYS: [process.env.GROQ_API_KEY || ''], OPENAI_API_CONFIGS: {} });
+      return res.json({ ENABLE_OPENAI_API: true, OPENAI_API_BASE_URLS: ['https://generativelanguage.googleapis.com'], OPENAI_API_KEYS: [process.env.GOOGLE_API_KEY || ''], OPENAI_API_CONFIGS: {} });
     }
 
     // ============ CUSTOM CHAT API (for frontend) ============
@@ -792,7 +787,7 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
 
       const plain = loadPlain();
             const openaiDocsCtx = getOpenAIDocsContext("");
-      const contextPrompt = `${webContext}${openaiDocsCtx}Kamu adalah asisten AI yang berjalan di dalam **AI Sandbox Qwen** — lingkungan aman dan terisolasi dengan sistem log, statistik, error handling, dan filter bawaan.
+      const contextPrompt = `${webContext}${openaiDocsCtx}Kamu adalah asisten AI yang berjalan di dalam **AI ELENA (Gemini)** — lingkungan aman dan terisolasi dengan sistem log, statistik, error handling, dan filter bawaan.
 
 # Format Pertanyaan Terstruktur
 Jika kamu perlu menggali informasi dari user (seperti survei, polling, atau kebutuhan spesifik), gunakan format JSON berikut. Keluarkan JSON ini **saja tanpa teks lain** di awal pesan, lalu setelah user menjawab baru berikan respons lanjutan.
@@ -859,7 +854,7 @@ ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
         const streamGen = sandboxChatStream({
           prompt: typeof message === 'object' ? (message.content || JSON.stringify(message)) : message,
           history: history || [],
-          model: (model || 'qwen/qwen3.6-27b'),
+          model: (model || 'gemini-2.0-flash'),
           temperature: 0.7,
           maxTokens: 4096,
           system: contextPrompt,

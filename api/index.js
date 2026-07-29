@@ -810,11 +810,42 @@ ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
         });
         
         let fullResponse = '';
+                let inThinkTag = false;
+        let thinkBuf = '';
         for await (const chunk of streamGen) {
           if (chunk.done) break;
           if (chunk.content) {
             fullResponse += chunk.content;
-            res.write(`data: ${JSON.stringify({ content: chunk.content })}\n\n`);
+            // Filter out <think>...</think> reasoning tags
+            let raw = chunk.content;
+            let filtered = '';
+            if (inThinkTag) {
+              thinkBuf += raw;
+              const endIdx = thinkBuf.indexOf('</think>');
+              if (endIdx >= 0) {
+                inThinkTag = false;
+                filtered = thinkBuf.substring(endIdx + 8);
+                thinkBuf = '';
+              }
+            } else {
+              const startIdx = raw.indexOf('<think');
+              if (startIdx >= 0) {
+                inThinkTag = true;
+                filtered = raw.substring(0, startIdx);
+                thinkBuf = raw.substring(startIdx);
+                const endIdx2 = thinkBuf.indexOf('</think>');
+                if (endIdx2 >= 0) {
+                  inThinkTag = false;
+                  filtered += thinkBuf.substring(endIdx2 + 8);
+                  thinkBuf = '';
+                }
+              } else {
+                filtered = raw;
+              }
+            }
+            if (filtered) {
+              res.write(`data: ${JSON.stringify({ content: filtered })}\n\n`);
+            }
           }
         }
         

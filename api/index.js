@@ -99,7 +99,7 @@ export default async function handler(req, res) {
         name: 'Bot AI',
         version: '1.0.0',
         default_locale: 'id-ID',
-        default_models: 'groq/compound',
+        default_models: 'qwen/qwen3.6-27b',
         default_prompt_suggestions: [
           { content: 'Apa kabar?', title: ['Sapa', 'Sapa bot'] },
           { content: 'Jelaskan AI dalam bahasa sederhana', title: ['Edukasi', 'Belajar AI'] },
@@ -131,11 +131,7 @@ export default async function handler(req, res) {
     // GET /api/v1/models or /api/models
     if (path === '/api/v1/models' || path === '/api/models') {
       const models = [
-        { id: 'groq/compound', name: 'Groq Compound', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
-        { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
-        { id: 'qwen/qwen3.6-27b', name: 'Qwen 3.6 27B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
-        { id: 'groq/compound-mini', name: 'Groq Compound Mini', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } },
-        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } }
+        { id: 'qwen/qwen3.6-27b', name: 'Qwen 3.6 27B', owned_by: 'groq', info: { capabilities: { vision: false, chat: true } } }
       ];
       return res.json({ data: models });
     }
@@ -206,11 +202,7 @@ export default async function handler(req, res) {
     if (path === '/openai/models') {
       return res.json({
         data: [
-          { id: 'groq/compound', object: 'model', owned_by: 'groq' },
-          { id: 'llama-3.1-8b-instant', object: 'model', owned_by: 'groq' },
-          { id: 'qwen/qwen3.6-27b', object: 'model', owned_by: 'groq' },
-          { id: 'groq/compound-mini', object: 'model', owned_by: 'groq' },
-          { id: 'llama-3.3-70b-versatile', object: 'model', owned_by: 'groq' }
+          { id: 'qwen/qwen3.6-27b', object: 'model', owned_by: 'groq' }
         ]
       });
     }
@@ -219,7 +211,7 @@ export default async function handler(req, res) {
     // POST /api/chat/completions
     if ((path === '/openai/chat/completions' || path === '/api/chat/completions' || path === '/api/v1/chat/completions') && method === 'POST') {
       const client = await getGroq();
-      const model = body.model || 'groq/compound';
+      const model = body.model || 'qwen/qwen3.6-27b';
       const messages = body.messages || [];
       const stream = body.stream !== false;
 
@@ -323,7 +315,7 @@ ${system ? '\nInstruksi tambahan: ' + system : ''}`;
 
       try {
         const streamResp = await client.chat.completions.create({
-          model: model || 'groq/compound',
+          model: model || 'qwen/qwen3.6-27b',
           messages: [
             { role: 'system', content: contextPrompt },
             { role: 'user', content: message }

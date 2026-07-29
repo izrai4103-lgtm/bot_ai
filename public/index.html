@@ -133,11 +133,8 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 .message{gap:12px}
 .message-avatar{width:28px;height:28px;font-size:12px}
 }
-/* Model selector */
-.model-selector{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;cursor:pointer;font-size:13px;color:var(--text-secondary);border:1px solid var(--border);transition:background .2s}
-.model-selector:hover{background:var(--bg-hover)}
-.model-selector select{display:none}
-.model-label{font-size:13px;font-weight:500;color:var(--text-secondary)}
+/* Model badge */
+.model-badge{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;color:var(--text-secondary)}
 /* Stop button */
 .stop-btn{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:12px;padding:8px 20px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:24px;color:var(--text-primary);font-size:14px;cursor:pointer;white-space:nowrap;transition:background .2s}
 .stop-btn:hover{background:var(--bg-hover)}
@@ -183,16 +180,9 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
       <button class="menu-btn" onclick="toggleSidebar()">☰</button>
       <div class="header-title" id="headerTitle">Bot AI</div>
       <div class="header-actions">
-        <div class="model-selector" id="modelSelector" onclick="document.getElementById('modelSelect').click()">
+        <div class="model-badge">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-          <span class="model-label" id="modelLabel">Groq Compound</span>
-          <select id="modelSelect" onchange="changeModel(this)" style="display:none">
-            <option value="groq/compound">Groq Compound</option>
-            <option value="llama-3.1-8b-instant">Llama 3.1 8B</option>
-            <option value="qwen/qwen3.6-27b">Qwen 3.6 27B</option>
-            <option value="groq/compound-mini">Groq Compound Mini</option>
-            <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
-          </select>
+          <span>Qwen 3.6 27B</span>
         </div>
       </div>
     </header>
@@ -251,7 +241,7 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 <script>
 // ============ STATE ============
 let messages = [];
-let currentModel = 'llama-3.3-70b-versatile';
+let currentModel = 'qwen/qwen3.6-27b';
 let isGenerating = false;
 let abortController = null;
 let autoScroll = true;
@@ -265,7 +255,6 @@ const welcomeScreen = document.getElementById('welcomeScreen');
 const chatInput = document.getElementById('chatInput');
 const sendBtn = document.getElementById('sendBtn');
 const stopBtn = document.getElementById('stopBtn');
-const modelLabel = document.getElementById('modelLabel');
 const headerTitle = document.getElementById('headerTitle');
 const scrollLockIndicator = document.getElementById('scrollLockIndicator');
 const chatList = document.getElementById('chatList');
@@ -277,15 +266,7 @@ function toggleSidebar() {
 }
 
 // ============ MODEL ============
-function changeModel(select) {
-  currentModel = select.value;
-  modelLabel.textContent = select.options[select.selectedIndex].text;
-}
-function changeModelUI(id, name) {
-  currentModel = id;
-  modelLabel.textContent = name;
-  document.getElementById('modelSelect').value = id;
-}
+// Using Qwen 3.6 27B (single model)
 
 // ============ CHAT INPUT ============
 function autoResize(el) {

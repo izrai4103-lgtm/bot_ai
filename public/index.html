@@ -38,7 +38,7 @@
     .hbtn:active{background:#e5e5e5}
 
     /* CHAT */
-    .chat-box{flex:1;overflow-y:auto;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:#fff}
+    .chat-box{flex:1;overflow-y:auto;background:#fff}
     .chat-inner{padding:8px 0;max-width:700px;margin:0 auto;width:100%}
     @media(min-width:768px){.chat-inner{padding:16px 0}}
 
@@ -201,7 +201,6 @@
       div.innerHTML = '<div class="msg-avatar">✦</div><div class="msg-body"><div class="content stream-cursor"></div></div>'
       inner.appendChild(div)
       const ce = div.querySelector('.content')
-      scroll()
 
       try {
         ac = new AbortController()
@@ -242,7 +241,7 @@
                 reply += data.content
                 try { ce.innerHTML = marked.parse(reply) + '<span class="stream-cursor"></span>' }
                 catch(e) { ce.innerHTML = esc(reply) + '<span class="stream-cursor"></span>' }
-                scroll()
+
               }
             } catch(e) {
               if(e.message !== 'Unexpected end of JSON input') console.error(e)
@@ -262,7 +261,6 @@
 
         history.push({role:'user', content:text})
         history.push({role:'assistant', content:reply})
-        scroll()
 
       } catch(e) {
         if(e.name === 'AbortError') return
@@ -287,17 +285,17 @@
       div.className = `msg ${u ? 'user' : 'assistant'}`
       div.innerHTML = `<div class="msg-avatar">${u ? 'U' : '✦'}</div><div class="msg-body"><div class="content">${esc(text)}</div><div class="msg-footer"><span>${t}</span></div></div>`
       inner.appendChild(div)
-      scroll()
+
     }
 
     function resetChat() {
       if(!inner.querySelectorAll('.msg').length) return
       history = []; inner.innerHTML = ''
       inner.innerHTML = `<div class="empty"><div class="logo">✦</div><h2>Ada yang bisa saya bantu?</h2><p>Groq Llama 3.3 70B — streaming real-time, bahasa Indonesia</p><div class="chips"><button onclick="quick('Jelaskan artificial intelligence')">🧠 AI</button><button onclick="quick('Buat kode Python web scraper')">🐍 Python</button><button onclick="quick('Apa itu REST API?')">🌐 REST API</button><button onclick="quick('Tips belajar coding')">💡 Tips</button></div></div>`
-      scroll(); show('Percakapan baru')
+      show('Percakapan baru')
     }
 
-    function scroll() {}
+    
     function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML }
     function show(m) {
       toast.textContent = m; clearTimeout(tt); void toast.offsetWidth

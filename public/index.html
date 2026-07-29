@@ -254,6 +254,7 @@ let isGenerating = false;
 let abortController = null;
 let chatHistory = JSON.parse(localStorage.getItem('bot_ai_chats') || '[]');
 let activeChatId = localStorage.getItem('bot_ai_active_chat') || null;
+let msgCounter = 0;
 
 // Thinking phases (like grok.ai)
 const THINKING_PHASES = [
@@ -322,7 +323,7 @@ async function sendMessage() {
   addMessage('user', text);
   
   // Show AI message placeholder with thinking phase
-  const msgId = 'msg-' + Date.now();
+  const msgId = 'msg-' + Date.now() + '-' + (++msgCounter);
   addMessage('assistant', '', msgId, true);
   
   // Start rotating thinking phases
@@ -423,7 +424,7 @@ function stopGeneration() {
 
 // ============ MESSAGES ============
 function addMessage(role, content, id, isTyping) {
-  const msgId = id || 'msg-' + Date.now();
+  const msgId = id || 'msg-' + Date.now() + '-' + (++msgCounter);
   const name = role === 'user' ? 'User' : 'Bot AI';
   const avatar = role === 'user' ? 'U' : 'B';
   

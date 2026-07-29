@@ -7,35 +7,40 @@ const ROOT = join(__dirname, '..');
 const PUBLIC = join(ROOT, 'public');
 
 // ============ PLAIN.JSON ============
-const PLAIN_PATH = "/tmp/plain.json";
-const PLAIN_SEED = join(ROOT, "plain.json");
+// Vercel serverless: /tmp is the only writable directory
+const PLAIN_TMP = '/tmp/bot_ai_plain.json';
+
+function defaultPlain() {
+  return {
+    version: 1,
+    learnings: [],
+    knowledge: { bot_name: 'Chat AI', language: 'Bahasa Indonesia', platform: 'Groq AI' },
+    preferences: {},
+    stats: { total_conversations: 0, total_learnings: 0, last_updated: null }
+  };
+}
 
 function loadPlain() {
-  // Warm start: /tmp/plain.json
-  if (existsSync(PLAIN_PATH)) {
-    try {
-      return JSON.parse(readFileSync(PLAIN_PATH, 'utf-8'));
-    } catch {}
-  }
-  // Cold start: seed dari repo
-  if (existsSync(PLAIN_SEED)) {
-    try {
-      const seed = JSON.parse(readFileSync(PLAIN_SEED, 'utf-8'));
-      try { writeFileSync(PLAIN_PATH, JSON.stringify(seed, null, 2), 'utf-8'); } catch {}
-      return seed;
-    } catch {}
-  }
-  // Fallback
-  return { version: 1, learnings: [], knowledge: {}, preferences: {}, stats: { total_conversations: 0, total_learnings: 0, last_updated: null } };
+  // Always read from /tmp (writable directory)
+  try {
+    if (existsSync(PLAIN_TMP)) {
+      const data = JSON.parse(readFileSync(PLAIN_TMP, 'utf-8'));
+      if (data && data.version) return data;
+    }
+  } catch {}
+  return defaultPlain();
 }
 
 function savePlain(data) {
-  writeFileSync(PLAIN_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  try {
+    writeFileSync(PLAIN_TMP, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Save plain error:', err.message);
+  }
 }
 
 function addLearning(userMsg, aiMsg) {
   const plain = loadPlain();
-  // Batasi jumlah learnings maks 500
   if (plain.learnings.length > 500) {
     plain.learnings = plain.learnings.slice(-250);
   }
@@ -43,8 +48,7 @@ function addLearning(userMsg, aiMsg) {
     id: Date.now().toString(),
     user_message: userMsg,
     ai_response: aiMsg,
-    timestamp: new Date().toISOString(),
-    context: plain.knowledge
+    timestamp: new Date().toISOString()
   });
   plain.stats.total_learnings = plain.learnings.length;
   plain.stats.total_conversations++;

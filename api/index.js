@@ -156,6 +156,27 @@ async function webSearch(query) {
     if (results.length > 0) return results;
   } catch (err) { console.error('DDG HTML fail:', err.message); }
 
+  // Fallback: Try Bing search
+  try {
+    const bingResp = await fetch('https://www.bing.com/search?q=' + encodeURIComponent(query) + '&count=5', {
+      headers: { 'User-Agent': SEARCH_USER_AGENT, 'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8' },
+      signal: AbortSignal.timeout(10000)
+    });
+    const bingHtml = await bingResp.text();
+    const results = [];
+    // Parse Bing results
+    const bingRegex = /<li class="b_algo">[\s\S]*?<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi;
+    let m;
+    while ((m = bingRegex.exec(bingHtml)) !== null && results.length < 5) {
+      results.push({
+        url: m[1],
+        title: m[2].replace(/<[^>]*>/g, '').trim(),
+        snippet: m[3].replace(/<[^>]*>/g, '').trim()
+      });
+    }
+    if (results.length > 0) return results;
+  } catch (err) { console.error('Bing fail:', err.message); }
+
   return [];
 }
 
@@ -748,30 +769,6 @@ ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
 
     // ============ DEBUG ============
     
-    // ============ DEBUG SEARCH ============
-    if (path === '/api/debug/search') {
-      const q = url.searchParams.get('q') || 'test';
-      let ddgResult = '';
-      try {
-        const ddgResp = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1', {
-          headers: { 'User-Agent': SEARCH_USER_AGENT },
-          signal: AbortSignal.timeout(10000)
-        });
-        ddgResult = 'Status: ' + ddgResp.status + ' ' + ddgResp.statusText + '\n';
-        const text = await ddgResp.text();
-        ddgResult += 'Length: ' + text.length + '\n';
-        ddgResult += 'First 500 chars: ' + text.substring(0, 500);
-      } catch (err) {
-        ddgResult = 'Error: ' + err.message;
-      }
-      try {
-        const results = await webSearch(q);
-        return res.json({ query: q, ddg_debug: ddgResult, search_results: results });
-      } catch (err) {
-        return res.json({ query: q, ddg_debug: ddgResult, error: err.message });
-      }
-    }
-
 if (path === '/api/debug') {
       return res.json({
         plain_path: PLAIN_TMP,

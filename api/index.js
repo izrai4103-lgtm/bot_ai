@@ -456,7 +456,7 @@ async function callAgent({ prompt, history, system, apiKey, model, temperature, 
     history: history || [],
     system: system || '',
     apiKey,
-    model: model || 'gemini-2.0-flash',
+    model: model || 'gemini-2.5-flash',
     temperature: temperature || 0.3,
     maxTokens: maxTokens || AGENT_MAX_TOKENS,
   });
@@ -631,7 +631,7 @@ export default async function handler(req, res) {
         name: 'Bot AI',
         version: '1.0.0',
         default_locale: 'id-ID',
-        default_models: 'gemini-2.0-flash',
+        default_models: 'gemini-2.5-flash',
         default_prompt_suggestions: [
           { content: 'Apa kabar?', title: ['Sapa', 'Sapa bot'] },
           { content: 'Jelaskan AI dalam bahasa sederhana', title: ['Edukasi', 'Belajar AI'] },
@@ -663,7 +663,7 @@ export default async function handler(req, res) {
     // GET /api/v1/models or /api/models
     if (path === '/api/v1/models' || path === '/api/models') {
       const models = [
-        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', owned_by: 'google', info: { capabilities: { vision: false, chat: true } } }
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.0 Flash', owned_by: 'google', info: { capabilities: { vision: false, chat: true } } }
       ];
       return res.json({ data: models });
     }
@@ -796,7 +796,7 @@ export default async function handler(req, res) {
     if (path === '/openai/models') {
       return res.json({
         data: [
-          { id: 'gemini-2.0-flash', object: 'model', owned_by: 'google' }
+          { id: 'gemini-2.5-flash', object: 'model', owned_by: 'google' }
         ]
       });
     }
@@ -804,7 +804,7 @@ export default async function handler(req, res) {
     // POST /openai/chat/completions - Chat completion via Groq
     // POST /api/chat/completions
     if ((path === '/openai/chat/completions' || path === '/api/chat/completions' || path === '/api/v1/chat/completions') && method === 'POST') {
-      const model = body.model || 'gemini-2.0-flash';
+      const model = body.model || 'gemini-2.5-flash';
       const messages = normalizeMessages(body.messages || []);
       const stream = body.stream !== false;
 
@@ -1000,7 +1000,7 @@ ${system ? '\\n### Instruksi\\n' + system : ''}`;
         const streamGen = sandboxChatStream({
           prompt: userMsg,
           history: history || [],
-          model: (model || 'gemini-2.0-flash'),
+          model: (model || 'gemini-2.5-flash'),
           temperature: 0.5,
           maxTokens: parseInt(process.env.MAX_TOKENS || '250', 10),
           system: contextPrompt,

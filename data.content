@@ -1,0 +1,9 @@
+{
+  content: [
+    {
+      type: "text",
+      text: "Groq response here"
+    }
+    // Other possible values of "type": tool_use, tool_result, image, document
+  ],
+}

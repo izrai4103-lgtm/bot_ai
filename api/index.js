@@ -44,6 +44,32 @@ function stripThinkTags(text) {
   return text.replace(/<[Tt]hink>[\s\S]*?<\/[Tt]hink>/g, '').trim();
 }
 
+function extractTextFromContent(content) {
+  // Handle content block format: [{ type: "text", text: "..." }, ...]
+  if (Array.isArray(content)) {
+    return content.filter(c => c.type === 'text').map(c => c.text).join('\n');
+  }
+  return String(content || '');
+}
+
+function makeContentBlocks(text) {
+  // Create content block array from text string
+  return [{ type: 'text', text: text }];
+}
+
+function normalizeMessages(messages) {
+  // Normalize messages to always use simple { role, content: string } format
+  return messages.map(msg => {
+    if (msg.content && Array.isArray(msg.content)) {
+      return { ...msg, content: extractTextFromContent(msg.content) };
+    }
+    if (msg.content === undefined || msg.content === null) {
+      return { ...msg, content: '' };
+    }
+    return msg;
+  });
+}
+
 function addLearning(userMsg, aiMsg) {
   const plain = loadPlain();
   if (plain.learnings.length > 500) {
@@ -217,7 +243,7 @@ export default async function handler(req, res) {
     if ((path === '/openai/chat/completions' || path === '/api/chat/completions' || path === '/api/v1/chat/completions') && method === 'POST') {
       const client = await getGroq();
       const model = body.model || 'qwen/qwen3.6-27b';
-      const messages = body.messages || [];
+      const messages = normalizeMessages(body.messages || []);
       const stream = body.stream !== false;
 
       // Add system message with plain.json knowledge
@@ -301,7 +327,7 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
           // Save to plain.json
           const lastMsg = messages[messages.length - 1];
           if (lastMsg && fullResponse) {
-            addLearning(lastMsg.content || '', stripThinkTags(fullResponse));
+            addLearning(extractTextFromContent(lastMsg?.content || ''), stripThinkTags(fullResponse));
           }
 
           res.write(`data: [DONE]\n\n`);
@@ -323,7 +349,7 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
           const lastMsg = messages[messages.length - 1];
           const responseText = completion.choices[0]?.message?.content || '';
           if (lastMsg && responseText) {
-            addLearning(lastMsg.content || '', responseText);
+            addLearning(extractTextFromContent(lastMsg?.content || ''), responseText);
           }
 
           if (completion.choices[0]?.message?.content) {
@@ -344,6 +370,9 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
     // ============ CUSTOM CHAT API (for frontend) ============
     if (path === '/api/chat' && method === 'POST') {
       const client = await getGroq();
+      if (body.messages) {
+        body.messages = normalizeMessages(body.messages);
+      }
       const { message, model, system } = body;
       if (!message) return res.status(400).json({ error: 'Message required' });
 
@@ -424,7 +453,7 @@ ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
         }
 
         if (fullResponse) {
-          addLearning(message, stripThinkTags(fullResponse));
+          addLearning(extractTextFromContent(message || ''), stripThinkTags(fullResponse));
         }
 
         res.write(`data: [DONE]\n\n`);

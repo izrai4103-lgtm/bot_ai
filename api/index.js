@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { sandboxChat, sandboxChatStream, checkSandbox } from './sandbox_client.js';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
@@ -440,13 +441,13 @@ function addLearning(userMsg, aiMsg) {
   return plain;
 }
 
-// ============ GROQ CLIENT ============
-let groq;
-async function getGroq() {
-  if (groq) return groq;
+// ============ AI SANDBOX (Qwen via Python Sandbox + Fallback Groq SDK) ============
+let groqFallback;
+async function getGroqFallback() {
+  if (groqFallback) return groqFallback;
   const { default: Groq } = await import('groq-sdk');
-  groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-  return groq;
+  groqFallback = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  return groqFallback;
 }
 
 // ============ SERVER ============
@@ -655,7 +656,6 @@ export default async function handler(req, res) {
     // POST /openai/chat/completions - Chat completion via Groq
     // POST /api/chat/completions
     if ((path === '/openai/chat/completions' || path === '/api/chat/completions' || path === '/api/v1/chat/completions') && method === 'POST') {
-      const client = await getGroq();
       const model = body.model || 'qwen/qwen3.6-27b';
       const messages = normalizeMessages(body.messages || []);
       const stream = body.stream !== false;
@@ -712,92 +712,35 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
         ...messages
       ];
 
-      if (stream) {
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
+      try {
+        const responseText = await sandboxChat({
+          prompt: extractTextFromContent(messages[messages.length - 1]?.content || ''),
+          history: messages.slice(0, -1).filter(m => m.role !== 'system'),
+          model: model.replace('/', '.'),
+          temperature: body.temperature || 0.7,
+          maxTokens: body.max_tokens || 4096,
+          system: systemMsg,
+        });
 
-        try {
-          const streamResp = await client.chat.completions.create({
-            model,
-            messages: fullMessages,
-            stream: true,
-            temperature: body.temperature || 0.7,
-            max_tokens: body.max_tokens || 4096
-          });
-
-          let fullResponse = '';
-          let inThinkTag = false;
-          let thinkBuf = '';
-          for await (const chunk of streamResp) {
-            const raw = chunk.choices[0]?.delta?.content || '';
-            if (raw) fullResponse += raw;
-            // Filter out <think>...</think> reasoning tags (character-by-character state machine)
-            let filtered = '';
-            if (inThinkTag) {
-              thinkBuf += raw;
-              const endIdx = thinkBuf.indexOf('</think>');
-              if (endIdx >= 0) {
-                inThinkTag = false;
-                filtered = thinkBuf.substring(endIdx + 8);
-                thinkBuf = '';
-              }
-            } else {
-              const startIdx = raw.indexOf('<think');
-              if (startIdx >= 0) {
-                inThinkTag = true;
-                filtered = raw.substring(0, startIdx);
-                thinkBuf = raw.substring(startIdx);
-                const endIdx2 = thinkBuf.indexOf('</think>');
-                if (endIdx2 >= 0) {
-                  inThinkTag = false;
-                  filtered += thinkBuf.substring(endIdx2 + 8);
-                  thinkBuf = '';
-                }
-              } else {
-                filtered = raw;
-              }
-            }
-            if (filtered) {
-              res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: filtered }, index: 0 }] })}\n\n`);
-            }
-          }
-
-          // Save to plain.json
-          const lastMsg = messages[messages.length - 1];
-          if (lastMsg && fullResponse) {
-            addLearning(extractTextFromContent(lastMsg?.content || ''), stripThinkTags(fullResponse));
-          }
-
-          res.write(`data: [DONE]\n\n`);
-          return res.end();
-        } catch (err) {
-          res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
-          return res.end();
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg && responseText) {
+          addLearning(extractTextFromContent(lastMsg?.content || ''), stripThinkTags(responseText));
         }
-      } else {
-        try {
-          const completion = await client.chat.completions.create({
-            model,
-            messages: fullMessages,
-            stream: false,
-            temperature: body.temperature || 0.7,
-            max_tokens: body.max_tokens || 4096
-          });
 
-          const lastMsg = messages[messages.length - 1];
-          const responseText = completion.choices[0]?.message?.content || '';
-          if (lastMsg && responseText) {
-            addLearning(extractTextFromContent(lastMsg?.content || ''), responseText);
-          }
-
-          if (completion.choices[0]?.message?.content) {
-            completion.choices[0].message.content = stripThinkTags(completion.choices[0].message.content);
-          }
-          return res.json(completion);
-        } catch (err) {
-          return res.status(500).json({ error: err.message });
-        }
+        return res.json({
+          id: 'chat-' + Date.now(),
+          object: 'chat.completion',
+          created: Math.floor(Date.now() / 1000),
+          model: model,
+          choices: [{
+            index: 0,
+            message: { role: 'assistant', content: stripThinkTags(responseText) },
+            finish_reason: 'stop'
+          }],
+          usage: { total_tokens: 0 }
+        });
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
       }
     }
 
@@ -808,11 +751,6 @@ ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
 
     // ============ CUSTOM CHAT API (for frontend) ============
     if (path === '/api/chat' && method === 'POST') {
-      const client = await getGroq();
-      if (body.messages) {
-        body.messages = normalizeMessages(body.messages);
-      }
-      
       const { message, model, system, web_search, history } = body;
       if (!message) return res.status(400).json({ error: 'Message required' });
 
@@ -857,62 +795,33 @@ ${LICENSE_TEXT ? '\n# Lisensi\n' + LICENSE_TEXT : ''}
 
 ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
 
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-
       try {
-        const streamResp = await client.chat.completions.create({
-          model: model || 'qwen/qwen3.6-27b',
-          messages: [
-            { role: 'system', content: contextPrompt },
-            { role: 'user', content: message }
-          ].concat(history || []),
-          stream: true,
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        
+        const streamGen = sandboxChatStream({
+          prompt: typeof message === 'object' ? (message.content || JSON.stringify(message)) : message,
+          history: history || [],
+          model: (model || 'qwen/qwen3.6-27b').replace('/', '.'),
           temperature: 0.7,
-          max_tokens: 4096
+          maxTokens: 4096,
+          system: contextPrompt,
         });
-
+        
         let fullResponse = '';
-        let inThinkTag = false;
-        let thinkBuf = '';
-        for await (const chunk of streamResp) {
-          const raw = chunk.choices[0]?.delta?.content || '';
-          if (raw) fullResponse += raw;
-          let filtered = '';
-          if (inThinkTag) {
-            thinkBuf += raw;
-            const endIdx = thinkBuf.indexOf('</think>');
-            if (endIdx >= 0) {
-              inThinkTag = false;
-              filtered = thinkBuf.substring(endIdx + 8);
-              thinkBuf = '';
-            }
-          } else {
-            const startIdx = raw.indexOf('<think');
-            if (startIdx >= 0) {
-              inThinkTag = true;
-              filtered = raw.substring(0, startIdx);
-              thinkBuf = raw.substring(startIdx);
-              const endIdx2 = thinkBuf.indexOf('</think>');
-              if (endIdx2 >= 0) {
-                inThinkTag = false;
-                filtered += thinkBuf.substring(endIdx2 + 8);
-                thinkBuf = '';
-              }
-            } else {
-              filtered = raw;
-            }
-          }
-          if (filtered) {
-            res.write(`data: ${JSON.stringify({ content: filtered })}\n\n`);
+        for await (const chunk of streamGen) {
+          if (chunk.done) break;
+          if (chunk.content) {
+            fullResponse += chunk.content;
+            res.write(`data: ${JSON.stringify({ content: chunk.content })}\n\n`);
           }
         }
-
+        
         if (fullResponse) {
           addLearning(extractTextFromContent(message || ''), stripThinkTags(fullResponse));
         }
-
+        
         res.write(`data: [DONE]\n\n`);
         return res.end();
       } catch (err) {

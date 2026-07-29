@@ -81,102 +81,76 @@ function normalizeMessages(messages) {
 // ============ WEB SEARCH & BROWSE ============
 const SEARCH_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-// Search the web using multiple sources (free, no API key needed)
+// Search the web using DuckDuckGo Lite (simpler, more reliable HTML)
 async function webSearch(query) {
-  // Try DuckDuckGo Instant Answer API first
+  // Strategy 1: Try DuckDuckGo API (instant answers)
   try {
     const ddgUrl = 'https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json&no_html=1&skip_disambig=1';
-    const response = await fetch(ddgUrl, { 
+    const resp = await fetch(ddgUrl, { 
       headers: { 'User-Agent': SEARCH_USER_AGENT },
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(10000)
     });
-    const data = await response.json();
-    const results = [];
-    // Check abstract
-    if (data.AbstractText) {
-      results.push({
-        url: data.AbstractURL || 'https://duckduckgo.com',
-        title: data.Heading || query,
-        snippet: data.AbstractText.substring(0, 500)
-      });
-    }
-    // Check answer
-    if (data.Answer && data.Answer !== data.AbstractText) {
-      results.push({
-        url: data.AnswerURL || 'https://duckduckgo.com',
-        title: data.Heading || query,
-        snippet: data.Answer.substring(0, 500)
-      });
-    }
-    // Check related topics
-    if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
-      for (const topic of data.RelatedTopics) {
-        if (results.length >= 5) break;
-        if (topic.Text) {
-          results.push({
-            url: topic.FirstURL || 'https://duckduckgo.com',
-            title: topic.Text ? topic.Text.split(' - ')[0] : query,
-            snippet: topic.Text ? topic.Text.substring(0, 500) : ''
-          });
+    const text = await resp.text();
+    if (text) {
+      const data = JSON.parse(text);
+      const results = [];
+      if (data.AbstractText) {
+        results.push({ url: data.AbstractURL || 'https://duckduckgo.com', title: data.Heading || query, snippet: data.AbstractText.substring(0, 500) });
+      }
+      if (data.Answer && data.Answer !== data.AbstractText) {
+        results.push({ url: data.AnswerURL || 'https://duckduckgo.com', title: data.Heading || query, snippet: data.Answer.substring(0, 500) });
+      }
+      if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
+        for (const t of data.RelatedTopics) {
+          if (results.length >= 8) break;
+          if (t.Text) results.push({ url: t.FirstURL || 'https://duckduckgo.com', title: t.Text.split(' - ')[0] || query, snippet: t.Text.substring(0, 500) });
         }
       }
+      if (results.length > 0) return results.slice(0, 5);
     }
-    if (results.length > 0) return results;
-  } catch (err) {
-    console.error('DDG API error:', err.message);
-  }
+  } catch (err) { console.error('DDG API fail:', err.message); }
 
-  // Fallback: Try DuckDuckGo HTML search
+  // Strategy 2: Scrape DuckDuckGo HTML results
   try {
-    const url2 = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query);
-    const response2 = await fetch(url2, { 
+    const htmlResp = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query), {
       headers: { 'User-Agent': SEARCH_USER_AGENT },
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(15000)
     });
-    const html = await response2.text();
+    const html = await htmlResp.text();
     const results = [];
-    // Parse using simpler regex
-    const linkRegex = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
-    const snippetRegex = /class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\//gi;
-    const urls = []; const titles = []; const snippets = [];
+    // Use simpler extraction - find all result links
+    const resultRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+    const snippetRegex = /class="result__snippet"[^>]*>([\s\S]*?)<\//gi;
+    const urls = [], titles = [], snippets = [];
     let m;
-    while ((m = linkRegex.exec(html)) !== null) {
+    while ((m = resultRegex.exec(html)) !== null && urls.length < 5) {
       let href = m[1];
       if (href.startsWith('//')) href = 'https:' + href;
       if (href.startsWith('/')) href = 'https://duckduckgo.com' + href;
       urls.push(href);
       titles.push(m[2].replace(/<[^>]*>/g, '').trim());
-      if (urls.length >= 5) break;
     }
-    while ((m = snippetRegex.exec(html)) !== null) {
+    while ((m = snippetRegex.exec(html)) !== null && snippets.length < 5) {
       snippets.push(m[1].replace(/<[^>]*>/g, '').trim());
-      if (snippets.length >= 5) break;
     }
-    for (let i = 0; i < urls.length; i++) {
-      results.push({
-        url: urls[i] || 'https://duckduckgo.com',
-        title: titles[i] || query,
-        snippet: snippets[i] || ''
-      });
+    for (let i = 0; i < Math.min(urls.length, 5); i++) {
+      results.push({ url: urls[i], title: titles[i], snippet: snippets[i] || '' });
     }
     if (results.length > 0) return results;
-  } catch (err) {
-    console.error('DDG HTML error:', err.message);
-  }
+  } catch (err) { console.error('DDG HTML fail:', err.message); }
 
-  // Last fallback: Try Google search
+  // Strategy 3: Try to use a different SearXNG instance or direct Google scrape
   try {
-    const googleUrl = 'https://www.google.com/search?q=' + encodeURIComponent(query) + '&num=5';
-    const response3 = await fetch(googleUrl, {
-      headers: { 'User-Agent': SEARCH_USER_AGENT },
-      signal: AbortSignal.timeout(5000)
+    const googleResp = await fetch('https://www.google.com/search?q=' + encodeURIComponent(query), {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+      signal: AbortSignal.timeout(8000)
     });
-    const html3 = await response3.text();
+    const html = await googleResp.text();
     const results = [];
-    const gLinkRegex = /<a[^>]*href="\/url\?q=([^"&]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+    // Parse Google results
+    const gRegex = /<a[^>]*href="\/url\?q=([^"&]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
     let m;
-    while ((m = gLinkRegex.exec(html3)) !== null) {
-      if (results.length >= 5) break;
+    while ((m = gRegex.exec(html)) !== null && results.length < 5) {
       results.push({
         url: decodeURIComponent(m[1]),
         title: m[2].replace(/<[^>]*>/g, '').trim(),
@@ -184,40 +158,11 @@ async function webSearch(query) {
       });
     }
     if (results.length > 0) return results;
-  } catch (err) {
-    console.error('Google search error:', err.message);
-  }
+  } catch (err) { console.error('Google fail:', err.message); }
 
   return [];
 }
 
-// Browse and extract text from a URL
-async function browseUrl(targetUrl) {
-  try {
-    const response = await fetch(targetUrl, {
-      headers: { 'User-Agent': SEARCH_USER_AGENT },
-      signal: AbortSignal.timeout(10000)
-    });
-    const html = await response.text();
-    let text = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
-      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
-      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/&[^;]+;/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (text.length > 8000) text = text.substring(0, 8000) + '... [truncated]';
-    return text;
-  } catch (err) {
-    console.error('Browse error:', err.message);
-    return 'Error: Tidak dapat mengakses URL tersebut. ' + err.message;
-  }
-}
-
-// Search web and format results for AI context
 async function researchQuery(query) {
   const searchResults = await webSearch(query);
   if (searchResults.length === 0) {

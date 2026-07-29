@@ -179,7 +179,6 @@
       input.style.height = 'auto'
       input.style.height = Math.min(input.scrollHeight, 150) + 'px'
     })
-    input.addEventListener('focus', () => setTimeout(scroll, 300))
     input.addEventListener('keydown', e => {
       if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg() }
     })
@@ -298,7 +297,7 @@
       scroll(); show('Percakapan baru')
     }
 
-    function scroll() { chatBox.scrollTop = chatBox.scrollHeight }
+    function scroll() {}
     function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML }
     function show(m) {
       toast.textContent = m; clearTimeout(tt); void toast.offsetWidth

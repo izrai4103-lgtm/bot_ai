@@ -159,6 +159,34 @@ async function webSearch(query) {
   return [];
 }
 
+
+
+// Browse and extract text from a URL
+async function browseUrl(targetUrl) {
+  try {
+    const response = await fetch(targetUrl, {
+      headers: { 'User-Agent': SEARCH_USER_AGENT },
+      signal: AbortSignal.timeout(10000)
+    });
+    const html = await response.text();
+    let text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&[^;]+;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (text.length > 8000) text = text.substring(0, 8000) + '... [truncated]';
+    return text;
+  } catch (err) {
+    console.error('Browse error:', err.message);
+    return '';
+  }
+}
+
 async function researchQuery(query) {
   const searchResults = await webSearch(query);
   if (searchResults.length === 0) {

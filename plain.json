@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "created": "2026-07-29",
+  "learnings": [],
+  "knowledge": {
+    "bot_name": "Chat AI",
+    "language": "Bahasa Indonesia",
+    "platform": "Groq Llama 3.3 70B"
+  },
+  "preferences": {},
+  "stats": {
+    "total_conversations": 0,
+    "total_learnings": 0,
+    "last_updated": null
+  }
+}

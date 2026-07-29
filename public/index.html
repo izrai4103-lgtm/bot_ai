@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover" />
-  <meta name="theme-color" content="#ffffff" />
+  <meta name="theme-color" content="#343541" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>Chat AI</title>
@@ -11,88 +11,114 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <style>
+    :root {
+      --white: #ffffff;
+      --black: #343541;
+      --gray: #f7f7f8;
+      --gray-border: #e5e5e5;
+      --gray-text: #8e8ea0;
+      --gray-light: #ececf1;
+      --primary: #10a37f;
+      --primary-hover: #0e8c6b;
+      --sidebar-bg: #202123;
+      --sidebar-text: #ffffff;
+      --sidebar-hover: #2a2b32;
+      --sidebar-active: #343541;
+      --user-avatar: #5436da;
+      --assistant-avatar: #10a37f;
+      --send-bg: #343541;
+      --send-hover: #1d1d1e;
+      --shadow: 0 2px 6px rgba(0,0,0,.02);
+      --shadow-hover: 0 2px 12px rgba(0,0,0,.04);
+      --radius: 10px;
+      --max-width: 800px;
+    }
+
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
     html,body{height:100%;overflow:hidden}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;color:#343541;-webkit-font-smoothing:antialiased}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--sidebar-bg);color:var(--black);-webkit-font-smoothing:antialiased}
 
-    #app{width:100%;max-width:800px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;background:#fff}
-    @media(min-width:768px){#app{border-left:1px solid #e5e5e5;border-right:1px solid #e5e5e5}}
+    #app{width:100%;max-width:var(--max-width);height:100dvh;margin:0 auto;display:flex;flex-direction:column;background:var(--white);position:relative}
+    @media(min-width:768px){#app{box-shadow:0 0 0 1px rgba(0,0,0,.04)}}
 
-    /* ── HEADER (ChatGPT style) ── */
-    .header{display:flex;align-items:center;justify-content:center;padding:12px 16px;flex-shrink:0;padding-top:calc(12px+env(safe-area-inset-top,0px));border-bottom:1px solid rgba(0,0,0,.08);background:#fff;position:relative}
-    .header h1{font-size:14px;font-weight:600;color:#343541;display:flex;align-items:center;gap:6px}
-    .header h1 span{font-weight:400;color:#8e8ea0;background:#f4f4f5;padding:2px 7px;border-radius:4px;font-size:10px;letter-spacing:.2px}
-    .header-right{position:absolute;right:14px;top:50%;transform:translateY(-50%);display:flex;gap:2px}
-    .hbtn{width:32px;height:32px;border:none;border-radius:6px;background:transparent;color:#8e8ea0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:background .15s}
-    .hbtn:hover{background:#f4f4f5;color:#343541}
+    /* ── HEADER: ChatGPT style ── */
+    .header{display:flex;align-items:center;justify-content:center;padding:10px 14px;flex-shrink:0;padding-top:calc(10px+env(safe-area-inset-top,0px));border-bottom:1px solid var(--gray-border);background:var(--white);position:relative;z-index:10}
+    .header h1{font-size:14px;font-weight:600;color:var(--black);display:flex;align-items:center;gap:6px;letter-spacing:-.2px}
+    .header h1 .badge{font-weight:400;color:var(--gray-text);background:var(--gray);padding:2px 7px;border-radius:4px;font-size:10px;letter-spacing:.2px}
+    .header-right{position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;gap:2px}
+    .hbtn{width:32px;height:32px;border:none;border-radius:6px;background:transparent;color:var(--gray-text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:background .15s}
+    .hbtn:hover{background:var(--gray);color:var(--black)}
+    .hbtn:active{background:var(--gray-light)}
 
-    /* ── MESSAGES (ChatGPT style) ── */
-    .chat-box{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fff}
+    /* ── CHAT MESSAGES ── */
+    .chat-box{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--white)}
     .chat-inner{max-width:700px;margin:0 auto}
 
-    .msg{display:flex;gap:16px;padding:14px 16px;line-height:1.6;animation:fi .2s ease both}
+    .msg{display:flex;gap:16px;padding:14px 16px;line-height:1.6;animation:fi .2s ease both;border-bottom:1px solid transparent}
     @media(min-width:640px){.msg{padding:16px 24px;gap:20px}}
     @keyframes fi{from{opacity:0}to{opacity:1}}
 
-    .msg.user{background:#fff}
-    .msg.assistant{background:#f7f7f8}
+    .msg.assistant{background:var(--gray)}
+    .msg.user{background:var(--white)}
 
     .msg-avatar{width:30px;height:30px;border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;margin-top:2px}
-    .msg.user .msg-avatar{background:#5436da;color:#fff}
-    .msg.assistant .msg-avatar{background:#10a37f;color:#fff;font-size:14px}
+    .msg.user .msg-avatar{background:var(--user-avatar);color:var(--white);font-size:13px}
+    .msg.assistant .msg-avatar{background:var(--assistant-avatar);color:var(--white);font-size:14px}
 
-    .msg-body{flex:1;min-width:0;font-size:14px;color:#343541;line-height:1.65}
+    .msg-body{flex:1;min-width:0;font-size:14px;color:var(--black);line-height:1.65;overflow:hidden}
 
-    /* markdown content */
+    /* markdown */
     .msg-body p{margin-bottom:8px}
     .msg-body p:last-child{margin-bottom:0}
     .msg-body ul,.msg-body ol{padding-left:20px;margin:6px 0}
     .msg-body li{margin-bottom:3px}
-    .msg-body code{background:#f1f1f3;padding:2px 5px;border-radius:3px;font-size:13px;font-family:'SF Mono','Fira Code',monospace;color:#343541}
-    .msg-body pre{margin:8px 0;border-radius:6px;overflow:hidden;border:1px solid #e5e5e5}
-    .msg-body pre code{background:#f7f7f8;padding:12px 14px;display:block;overflow-x:auto;font-size:13px;line-height:1.5;border-radius:6px}
-    .msg-body blockquote{border-left:3px solid #e5e5e5;padding:3px 10px;margin:8px 0;color:#8e8ea0}
+    .msg-body code{background:var(--gray-light);padding:2px 5px;border-radius:3px;font-size:13px;font-family:'SF Mono','Fira Code',monospace;color:var(--black)}
+    .msg-body pre{margin:8px 0;border-radius:6px;overflow:hidden;border:1px solid var(--gray-border)}
+    .msg-body pre code{background:var(--gray);padding:12px 14px;display:block;overflow-x:auto;font-size:13px;line-height:1.5;border-radius:6px}
+    .msg-body blockquote{border-left:3px solid var(--gray-border);padding:3px 10px;margin:8px 0;color:var(--gray-text)}
     .msg-body table{border-collapse:collapse;margin:8px 0;width:100%;font-size:13px}
-    .msg-body th,.msg-body td{border:1px solid #e5e5e5;padding:5px 10px;text-align:left}
-    .msg-body th{background:#f4f4f5;font-weight:600}
-    .msg-body a{color:#10a37f;text-decoration:none}
+    .msg-body th,.msg-body td{border:1px solid var(--gray-border);padding:5px 10px;text-align:left}
+    .msg-body th{background:var(--gray);font-weight:600}
+    .msg-body a{color:var(--primary);text-decoration:none}
     .msg-body a:hover{text-decoration:underline}
-    .msg-body h1,.msg-body h2,.msg-body h3,.msg-body h4{margin:12px 0 6px;font-weight:600;color:#1d1d1e}
+    .msg-body h1,.msg-body h2,.msg-body h3,.msg-body h4{margin:12px 0 6px;font-weight:600;color:var(--black)}
     .msg-body h1{font-size:18px}.msg-body h2{font-size:16px}.msg-body h3{font-size:14px}
-    .msg-body hr{margin:12px 0;border:none;border-top:1px solid #e5e5e5}
+    .msg-body hr{margin:12px 0;border:none;border-top:1px solid var(--gray-border)}
 
-    .stream-cursor::after{content:'▊';animation:blink .8s step-end infinite;color:#343541}
+    .stream-cursor::after{content:'▊';animation:blink .8s step-end infinite;color:var(--black)}
     @keyframes blink{50%{opacity:0}}
 
-    .msg-footer{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:#c5c5d2}
+    .msg-footer{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:var(--gray-text)}
 
-    /* ── EMPTY STATE ── */
-    .empty{padding:100px 24px 60px;text-align:center;display:flex;flex-direction:column;align-items:center}
-    .empty h2{font-size:18px;font-weight:600;color:#343541;margin-bottom:4px}
-    .empty p{font-size:13px;color:#8e8ea0;margin-bottom:20px}
+    /* ── EMPTY ── */
+    .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:100px 24px 60px;text-align:center}
+    .empty .logo{width:48px;height:48px;border-radius:12px;background:var(--gray);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px}
+    .empty h2{font-size:20px;font-weight:600;color:var(--black);margin-bottom:6px}
+    .empty p{font-size:13px;color:var(--gray-text);margin-bottom:24px}
     .empty .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:400px}
-    .empty .chips button{background:#f4f4f5;border:1px solid #e5e5e5;border-radius:100px;padding:6px 14px;font-size:12px;color:#343541;cursor:pointer;transition:all .15s;white-space:nowrap}
-    .empty .chips button:hover{background:#e5e5e5;border-color:#d1d1d6}
+    .empty .chips button{background:var(--gray);border:1px solid var(--gray-border);border-radius:100px;padding:6px 14px;font-size:12px;color:var(--black);cursor:pointer;transition:all .15s;white-space:nowrap}
+    .empty .chips button:hover{background:var(--gray-light);border-color:var(--gray-text)}
 
-    /* ── INPUT (ChatGPT style) ── */
-    .input-wrap{flex-shrink:0;padding:0 16px 16px;padding-bottom:calc(16px+env(safe-area-inset-bottom,0px));background:#fff}
-    .input-inner{max-width:700px;margin:0 auto;padding:0 44px 0 14px;border:1px solid #c5c5d2;border-radius:10px;background:#fff;position:relative;box-shadow:0 2px 6px rgba(0,0,0,.02);transition:border-color .2s,box-shadow .2s}
-    .input-inner:focus-within{border-color:#8e8ea0;box-shadow:0 2px 12px rgba(0,0,0,.04)}
-    .input-inner textarea{width:100%;padding:8px 0;border:none;background:transparent;color:#343541;font-size:14px;font-family:inherit;line-height:1.5;outline:none;resize:none;-webkit-appearance:none;min-height:36px;max-height:140px}
-    .input-inner textarea::placeholder{color:#8e8ea0}
+    /* ── INPUT: ChatGPT style ── */
+    .input-wrap{flex-shrink:0;padding:0 16px 16px;padding-bottom:calc(16px+env(safe-area-inset-bottom,0px));background:var(--white)}
+    .input-inner{display:flex;align-items:flex-end;max-width:700px;margin:0 auto;padding:6px 6px 6px 14px;border:1px solid var(--gray-border);border-radius:var(--radius);background:var(--white);position:relative;box-shadow:var(--shadow);transition:border-color .2s,box-shadow .2s}
+    .input-inner:focus-within{border-color:var(--gray-text);box-shadow:var(--shadow-hover)}
+    .input-inner textarea{flex:1;border:none;background:transparent;color:var(--black);font-size:14px;font-family:inherit;line-height:1.5;outline:none;resize:none;-webkit-appearance:none;min-height:28px;max-height:140px;padding:2px 0}
+    .input-inner textarea::placeholder{color:var(--gray-text)}
     .input-inner textarea:disabled{opacity:.4}
 
-    .input-actions{position:absolute;bottom:5px;right:5px;display:flex;gap:2px}
+    .input-actions{display:flex;gap:2px;flex-shrink:0}
     .send-btn,.stop-btn{width:32px;height:32px;border:none;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
-    .send-btn{background:#343541;color:#fff}
-    .send-btn:active{transform:scale(.9)}
-    .send-btn:disabled{background:#c5c5d2;cursor:default;transform:none}
-    .stop-btn{background:#ef4444;color:#fff;display:none}
-    .stop-btn:active{background:#dc2626}
+    .stop-btn{background:#ef4444;color:var(--white);display:none}
+    .stop-btn:hover{background:#dc2626}
+    .send-btn{background:var(--send-bg);color:var(--white)}
+    .send-btn:hover{background:var(--send-hover)}
+    .send-btn:active,.stop-btn:active{transform:scale(.9)}
+    .send-btn:disabled{background:var(--gray-light);color:var(--gray-text);cursor:default;transform:none}
     .send-btn svg,.stop-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
     /* ── TOAST ── */
-    .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);background:rgba(0,0,0,.8);backdrop-filter:blur(12px);color:#fff;padding:10px 22px;border-radius:10px;font-size:13px;opacity:0;transition:all .2s ease;pointer-events:none;z-index:100;text-align:center;max-width:260px}
+    .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);background:rgba(0,0,0,.85);backdrop-filter:blur(12px);color:var(--white);padding:10px 22px;border-radius:10px;font-size:13px;opacity:0;transition:all .2s ease;pointer-events:none;z-index:100;text-align:center;max-width:260px}
     .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
   </style>
 </head>
@@ -100,9 +126,9 @@
   <div id="app">
     <!-- HEADER -->
     <div class="header">
-      <h1>Chat AI <span>GROQ</span></h1>
+      <h1>Chat AI <span class="badge">GROQ</span></h1>
       <div class="header-right">
-        <button class="hbtn" onclick="resetChat()" title="Percakapan baru">✕</button>
+        <button class="hbtn" onclick="resetChat()" title="New chat">✕</button>
       </div>
     </div>
 
@@ -110,6 +136,7 @@
     <div class="chat-box" id="chatBox">
       <div class="chat-inner" id="chatInner">
         <div class="empty">
+          <div class="logo">✦</div>
           <h2>Ada yang bisa saya bantu?</h2>
           <p>Groq Llama 3.3 70B — streaming, bahasa Indonesia</p>
           <div class="chips">
@@ -148,7 +175,6 @@
 
     if(typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true })
 
-    // Auto-resize
     input.addEventListener('input', () => {
       input.style.height = 'auto'
       input.style.height = Math.min(input.scrollHeight, 140) + 'px'
@@ -172,7 +198,7 @@
 
       const div = document.createElement('div')
       div.className = 'msg assistant'
-      div.innerHTML = '<div class="msg-avatar">✦</div><div class="msg-body"><div class="stream-cursor"></div></div>'
+      div.innerHTML = '<div class="msg-avatar">✦</div><div class="msg-body"><span class="stream-cursor"></span></div>'
       inner.appendChild(div)
       const ce = div.querySelector('.msg-body')
 
@@ -265,7 +291,7 @@
     function resetChat() {
       if(!inner.querySelectorAll('.msg').length) return
       history = []; inner.innerHTML = ''
-      inner.innerHTML = '<div class="empty"><h2>Ada yang bisa saya bantu?</h2><p>Groq Llama 3.3 70B — streaming, bahasa Indonesia</p><div class="chips"><button onclick="quick(\'Jelaskan machine learning\')">🧠 ML</button><button onclick="quick(\'Buat kode Python web scraper\')">🐍 Python</button><button onclick="quick(\'Apa itu API?\')">🌐 API</button></div></div>'
+      inner.innerHTML = '<div class="empty"><div class="logo">✦</div><h2>Ada yang bisa saya bantu?</h2><p>Groq Llama 3.3 70B — streaming, bahasa Indonesia</p><div class="chips"><button onclick="quick(\'Jelaskan machine learning\')">🧠 ML</button><button onclick="quick(\'Buat kode Python web scraper\')">🐍 Python</button><button onclick="quick(\'Apa itu API?\')">🌐 API</button></div></div>'
       show('Percakapan baru')
     }
 

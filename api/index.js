@@ -10,6 +10,15 @@ const PUBLIC = join(ROOT, 'public');
 // Vercel serverless: /tmp is the only writable directory
 const PLAIN_TMP = '/tmp/bot_ai_plain.json';
 
+// ============ REGULATIONS ============
+let REGULATIONS = '';
+try {
+  const regPath = join(ROOT, 'regulation.md');
+  if (existsSync(regPath)) {
+    REGULATIONS = readFileSync(regPath, 'utf-8');
+  }
+} catch {}
+
 function defaultPlain() {
   return {
     version: 1,
@@ -266,6 +275,8 @@ Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
 
 ${plain.learnings.length > 0 ? '# Data Pembelajaran\n' + plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n') : ''}
 
+${REGULATIONS ? '\n# Regulasi Keamanan\n' + REGULATIONS : ''}
+
 ${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
 
       const fullMessages = [
@@ -397,6 +408,8 @@ Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
 
 # Data Pembelajaran
 ${plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n')}
+
+${REGULATIONS ? '\n# Regulasi Keamanan\n' + REGULATIONS : ''}
 
 ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
 

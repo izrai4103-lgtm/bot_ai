@@ -87,6 +87,16 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 .typing-indicator span:nth-child(3){animation-delay:.4s}
 @keyframes typing{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}
 }
+/* Thinking status like grok.ai */
+.thinking-status{display:flex;align-items:center;gap:8px;padding:8px 0;color:var(--text-secondary);font-size:14px;animation:thinkingPulse 2s ease-in-out infinite}
+@keyframes thinkingPulse{0%,100%{opacity:.6}50%{opacity:1}
+}
+.thinking-status .phase-dots{display:inline-flex;gap:3px}
+.thinking-status .phase-dots span{width:4px;height:4px;background:var(--text-tertiary);border-radius:50%;animation:thinkingDot 1.4s infinite}
+.thinking-status .phase-dots span:nth-child(2){animation-delay:.2s}
+.thinking-status .phase-dots span:nth-child(3){animation-delay:.4s}
+@keyframes thinkingDot{0%,60%,100%{opacity:.3}30%{opacity:1}
+}
 /* Welcome */
 .welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px 20px;text-align:center}
 .welcome .logo-large{width:64px;height:64px;background:var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:700;color:#fff;margin-bottom:20px}
@@ -245,6 +255,19 @@ let abortController = null;
 let chatHistory = JSON.parse(localStorage.getItem('bot_ai_chats') || '[]');
 let activeChatId = localStorage.getItem('bot_ai_active_chat') || null;
 
+// Thinking phases (like grok.ai)
+const THINKING_PHASES = [
+  { icon: '🧠', text: 'Menganalisis pertanyaan...' },
+  { icon: '🔍', text: 'Memeriksa data...' },
+  { icon: '📚', text: 'Mencari referensi...' },
+  { icon: '💭', text: 'Menyusun konsep...' },
+  { icon: '✍️', text: 'Menulis jawaban...' },
+  { icon: '📝', text: 'Merangkum...' },
+];
+
+let thinkingInterval = null;
+let thinkingPhaseIndex = 0;
+
 // ============ DOM ============
 const messagesEl = document.getElementById('messages');
 const messagesInner = document.getElementById('messagesInner');
@@ -298,9 +321,31 @@ async function sendMessage() {
   // Add user message
   addMessage('user', text);
   
-  // Show AI message placeholder
+  // Show AI message placeholder with thinking phase
   const msgId = 'msg-' + Date.now();
   addMessage('assistant', '', msgId, true);
+  
+  // Start rotating thinking phases
+  thinkingPhaseIndex = 0;
+  const thinkingEl = document.getElementById(msgId);
+  if (thinkingEl) {
+    const textEl = thinkingEl.querySelector('.text');
+    if (textEl) {
+      textEl.innerHTML = '<div class="thinking-status">' + THINKING_PHASES[0].icon + ' ' + THINKING_PHASES[0].text + '</div>';
+    }
+  }
+  
+  if (thinkingInterval) clearInterval(thinkingInterval);
+  thinkingInterval = setInterval(() => {
+    thinkingPhaseIndex = (thinkingPhaseIndex + 1) % THINKING_PHASES.length;
+    const el = document.getElementById(msgId);
+    if (el) {
+      const tEl = el.querySelector('.text');
+      if (tEl && !el.dataset.contentReceived) {
+        tEl.innerHTML = '<div class="thinking-status">' + THINKING_PHASES[thinkingPhaseIndex].icon + ' ' + THINKING_PHASES[thinkingPhaseIndex].text + '</div>';
+      }
+    }
+  }, 2500);
   
   // Save chat
   saveChat(text, '');
@@ -360,6 +405,10 @@ async function sendMessage() {
       updateMessage(msgId, '❌ Error: ' + err.message + '\n\nSilakan coba lagi atau refresh halaman.');
     }
   } finally {
+    if (thinkingInterval) {
+      clearInterval(thinkingInterval);
+      thinkingInterval = null;
+    }
     isGenerating = false;
     stopBtn.classList.remove('show');
     abortController = null;
@@ -400,6 +449,14 @@ function addMessage(role, content, id, isTyping) {
 function updateMessage(id, content) {
   const el = document.getElementById(id);
   if (!el) return;
+  
+  // Mark as content received (stop thinking phases)
+  el.dataset.contentReceived = 'true';
+  if (thinkingInterval) {
+    clearInterval(thinkingInterval);
+    thinkingInterval = null;
+  }
+  
   const textEl = el.querySelector('.text');
   if (!textEl) return;
   textEl.innerHTML = formatContent(content);

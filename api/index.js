@@ -235,7 +235,7 @@ Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
 
 ${plain.learnings.length > 0 ? '# Data Pembelajaran\n' + plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n') : ''}
 
-${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}\`;
+${body.system ? '\n### Instruksi Tambahan\n' + body.system : ''}`;
 
       const fullMessages = [
         { role: 'system', content: systemMsg },
@@ -331,7 +331,7 @@ Bahasa: ${plain.knowledge.language || 'Bahasa Indonesia'}
 # Data Pembelajaran
 ${plain.learnings.slice(-20).map(l => `- User: ${l.user_message}\n  AI: ${l.ai_response}`).join('\n')}
 
-${system ? '\n### Instruksi Tambahan\n' + system : ''}\`;
+${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
 
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');

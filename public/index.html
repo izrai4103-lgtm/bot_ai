@@ -184,8 +184,7 @@
       const contentEl = div.querySelector('.content')
       scroll()
 
-      // removed
-
+      try {
         abortController = new AbortController()
 
         const res = await fetch('/api/chat', {

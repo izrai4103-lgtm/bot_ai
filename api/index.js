@@ -523,3 +523,51 @@ ${system ? '\n### Instruksi Tambahan\n' + system : ''}`;
 }
 
 // force rebuild 1785301524
+
+// ============ STANDALONE SERVER (for Fly.io / local dev) ============
+// When this file is run directly with `node api/index.js`, start an HTTP server
+import { createServer } from 'http';
+
+const isStandalone = process.argv[1] && (
+  process.argv[1].endsWith('api/index.js') || 
+  process.argv[1].endsWith('api\\index.js') ||
+  process.argv[1].endsWith('index.js')
+);
+
+if (isStandalone) {
+  const PORT = process.env.PORT || 3000;
+  
+  const server = createServer((req, res) => {
+    // Create a simple Express-like request/response wrapper
+    const enhancedRes = new Proxy(res, {
+      get(target, prop) {
+        if (prop === 'json') {
+          return (data) => {
+            target.setHeader('Content-Type', 'application/json');
+            target.end(JSON.stringify(data));
+          };
+        }
+        if (prop === 'status') {
+          return (code) => {
+            target.statusCode = code;
+            return enhancedRes;
+          };
+        }
+        if (prop === 'setHeader') {
+          return target.setHeader.bind(target);
+        }
+        if (prop === 'end') {
+          return target.end.bind(target);
+        }
+        return target[prop];
+      }
+    });
+    
+    handler(req, enhancedRes);
+  });
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Bot AI server running on http://0.0.0.0:${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}

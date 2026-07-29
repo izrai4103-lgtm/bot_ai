@@ -1,0 +1,25 @@
+# Bot AI - Fly.io deployment configuration
+# Deploy: fly deploy
+# Access: fly proxy 3000:3000 -a bot-ai (then http://localhost:3000)
+
+app = "bot-ai"
+primary_region = "iad"
+
+[build]
+  builder = "heroku/buildpacks:20"
+
+[env]
+  NODE_ENV = "production"
+  GROQ_API_KEY = "your-groq-api-key-here"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
